@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IVO - IMU-Vision Overlay</title>
+    <style>
+        :root {
+            --mint-blue-dark: #1a3a6e;
+            --mint-blue-light: #4a9fd4;
+            --mint-accent: #2196F3;
+            --mint-success: #4CAF50;
+            --mint-warning: #FF9800;
+            --mint-error: #f44336;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Malgun Gothic', Arial, sans-serif;
+            background: linear-gradient(135deg, #0d1f3c 0%, #1a3a6e 50%, #0d1f3c 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+
+        .launcher-container {
+            background: rgba(26, 58, 110, 0.95);
+            border-radius: 20px;
+            padding: 40px 50px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            border: 2px solid rgba(74, 159, 212, 0.4);
+            text-align: center;
+            min-width: 450px;
+        }
+
+        .logo-section {
+            margin-bottom: 30px;
+        }
+
+        .logo-image {
+            width: 80px;
+            height: 80px;
+            border-radius: 16px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            border: 2px solid rgba(74, 159, 212, 0.5);
+        }
+
+        .logo-section h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #ffffff, var(--mint-blue-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .logo-section p {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+        }
+
+        .info-section {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .info-item:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.7);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .info-label .icon {
+            font-size: 18px;
+        }
+
+        .info-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--mint-blue-light);
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+
+        .info-value.loading {
+            color: rgba(255, 255, 255, 0.5);
+            font-style: italic;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .status-indicator.connected {
+            background: var(--mint-success);
+        }
+
+        .status-indicator.disconnected {
+            background: var(--mint-error);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .start-button {
+            background: linear-gradient(135deg, var(--mint-blue-light), var(--mint-accent));
+            border: none;
+            color: white;
+            padding: 18px 50px;
+            font-size: 18px;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 25px rgba(74, 159, 212, 0.4);
+            width: 100%;
+        }
+
+        .start-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 35px rgba(74, 159, 212, 0.5);
+        }
+
+        .start-button:active {
+            transform: translateY(0);
+        }
+
+        .start-button:disabled {
+            background: rgba(255, 255, 255, 0.2);
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .footer {
+            margin-top: 25px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .footer .credit {
+            color: var(--mint-blue-light);
+            font-weight: 600;
+        }
+
+        .instructions {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 200, 0, 0.1);
+            border-radius: 8px;
+            border-left: 3px solid var(--mint-warning);
+            text-align: left;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .instructions strong {
+            color: var(--mint-warning);
+        }
+    </style>
+</head>
+<body>
+    <div class="launcher-container">
+        <div class="logo-section">
+            <img src="../../image/1.jpg" alt="IVO Logo" class="logo-image">
+            <h1>IVO</h1>
+            <p>IMU-Vision Overlay v3.0</p>
+        </div>
+
+        <div class="info-section">
+            <div class="info-item">
+                <span class="info-label">
+                    <span class="icon">📶</span>
+                    WiFi Network
+                </span>
+                <span class="info-value" id="wifi-name">Loading...</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">
+                    <span class="icon">🌐</span>
+                    IP Address
+                </span>
+                <span class="info-value" id="ip-address">Loading...</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">
+                    <span class="icon">🔌</span>
+                    WebSocket Port
+                </span>
+                <span class="info-value" id="ws-port">9000</span>
+            </div>
+        </div>
+
+        <div class="instructions">
+            <strong>Connection Guide:</strong><br>
+            Configure your smartwatch app to connect to the IP address above on port 9000.
+        </div>
+
+        <button class="start-button" id="start-btn" onclick="startOverlay()">
+            Start Overlay
+        </button>
+
+        <div class="footer">
+            IVO - MJU Capstone 2025<br>
+            <span class="credit">Made by LYH</span>
+        </div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+
+        let currentNetworkInfo = null;
+
+        // Get network info on load
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                currentNetworkInfo = await ipcRenderer.invoke('get-network-info');
+
+                document.getElementById('wifi-name').textContent = currentNetworkInfo.wifi || 'Not Connected';
+                document.getElementById('ip-address').textContent = currentNetworkInfo.ip || 'Unknown';
+
+                if (!currentNetworkInfo.ip || currentNetworkInfo.ip === 'Unknown') {
+                    document.getElementById('ip-address').classList.add('loading');
+                }
+            } catch (err) {
+                console.error('Failed to get network info:', err);
+                document.getElementById('wifi-name').textContent = 'Error';
+                document.getElementById('ip-address').textContent = 'Error';
+            }
+        });
+
+        function startOverlay() {
+            const btn = document.getElementById('start-btn');
+            btn.disabled = true;
+            btn.textContent = 'Starting...';
+
+            // Send network info to update config
+            ipcRenderer.send('start-overlay', currentNetworkInfo);
+        }
+    </script>
+</body>
+</html>
