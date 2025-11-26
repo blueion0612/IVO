@@ -1,0 +1,89 @@
+{
+  "name": "ivo-imu-vision-overlay",
+  "version": "3.0.0",
+  "description": "IVO - IMU-Vision Overlay for PPT Gesture Control",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "start:direct": "electron . --direct",
+    "dev": "electron . --dev",
+    "test-gesture": "python gesture_controller.py --stage1_ckpt ./models/stage1_best.pt --stage2_ckpt ./models/stage2_best.pt",
+    "install-deps": "npm install && pip install -r requirements.txt",
+    "build": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:portable": "electron-builder --win portable",
+    "dist": "electron-builder --win --publish never",
+    "dist:mac": "electron-builder --mac --publish never"
+  },
+  "author": "MJU",
+  "license": "MIT",
+  "dependencies": {
+    "ws": "^8.14.2"
+  },
+  "devDependencies": {
+    "electron": "^27.0.0",
+    "electron-builder": "^24.13.3",
+    "electron-reload": "^2.0.0-alpha.1"
+  },
+  "build": {
+    "appId": "com.mju.ivo",
+    "productName": "IVO",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "config/**/*",
+      "assets/**/*",
+      "image/**/*",
+      "models/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "gesture_controller.py",
+        "to": "gesture_controller.py"
+      },
+      {
+        "from": "hand_tracker.py",
+        "to": "hand_tracker.py"
+      },
+      {
+        "from": "models",
+        "to": "models"
+      },
+      {
+        "from": "config",
+        "to": "config"
+      },
+      {
+        "from": "py",
+        "to": "py"
+      }
+    ],
+    "forceCodeSigning": false,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "IVO"
+    },
+    "mac": {
+      "target": ["dmg"],
+      "category": "public.app-category.productivity"
+    }
+  }
+}

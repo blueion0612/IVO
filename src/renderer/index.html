@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>PPT Overlay with IMU Control</title>
+    <link rel="stylesheet" href="styles/overlay.css">
+</head>
+<body>
+    <!-- Overlay active indicator (blue dot) -->
+    <div id="overlay-indicator"></div>
+
+    <!-- Canvas for drawing -->
+    <canvas id="overlay"></canvas>
+    
+    <!-- Caption display -->
+    <div id="caption"></div>
+    
+    <!-- Pointer indicator -->
+    <div id="pointer"></div>
+    
+    <!-- Overlay root for dynamic elements -->
+    <div id="overlay-root"></div>
+    
+    <!-- Loading indicator -->
+    <div class="loading" id="loading">
+        <div class="loading-spinner"></div>
+        <div>Initializing IMU Gesture Control...</div>
+    </div>
+    
+    <!-- Scripts (ES Module) -->
+    <script type="module" src="overlay.js"></script>
+        
+    <script>
+        // Remove loading indicator after initialization
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                const loading = document.getElementById('loading');
+                if (loading) {
+                    loading.style.display = 'none';
+                }
+            }, 2000);
+        });
+        
+        // Handle errors gracefully
+        window.addEventListener('error', (e) => {
+            console.error('Error:', e.error);
+            return true;
+        });
+    </script>
+</body>
+</html>
