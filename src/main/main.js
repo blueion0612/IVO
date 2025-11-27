@@ -9,6 +9,8 @@ const HandTrackingManager = require("./hand-tracking");
 const GestureControllerManager = require("./gesture-controller");
 const GestureWebSocketServer = require("./websocket-server");
 const PresentationTimer = require("./timer");
+const STTManager = require("./stt-manager");
+const SummarizerManager = require("./summarizer-manager");
 const { pptPrev, pptNext, jumpSlides } = require("./ppt-controller");
 const { setupOCRHandlers } = require("./ocr-handlers");
 
@@ -25,8 +27,12 @@ const handTracking = new HandTrackingManager(config);
 const gestureController = new GestureControllerManager(config);
 const wsServer = new GestureWebSocketServer(config);
 const timer = new PresentationTimer();
+const sttManager = new STTManager(config);
+const summarizerManager = new SummarizerManager(config);
 const colorPalette = config.colors.palette;
 let currentColorIndex = 0;
+let currentSpeaker = "presenter";  // Current speaker selection
+let summarizerStarted = false;  // Track if summarizer has been started
 
 function getWindow() {
     return win;
@@ -132,6 +138,54 @@ timer.setStopCallback(() => {
     }
 });
 
+// ===== STT Manager message handler =====
+sttManager.onMessage((msg) => {
+    switch (msg.type) {
+        case "ready":
+            console.log("[STT] Service ready");
+            if (win && win.webContents) {
+                win.webContents.send("cmd", { type: "sttReady" });
+            }
+            break;
+
+        case "recording_started":
+            if (win && win.webContents) {
+                win.webContents.send("cmd", { type: "sttRecordingStarted" });
+            }
+            break;
+
+        case "recording_stopped":
+            if (win && win.webContents) {
+                win.webContents.send("cmd", { type: "sttRecordingStopped" });
+            }
+            break;
+
+        case "transcription":
+            console.log(`[STT] Text: ${msg.text}`);
+            if (win && win.webContents) {
+                win.webContents.send("cmd", {
+                    type: "sttTranscription",
+                    text: msg.text,
+                    lang: msg.lang,
+                    prob: msg.prob,
+                    duration: msg.duration,
+                    speaker: currentSpeaker
+                });
+            }
+            break;
+
+        case "error":
+            console.error("[STT] Error:", msg.message);
+            if (win && win.webContents) {
+                win.webContents.send("cmd", {
+                    type: "sttError",
+                    message: msg.message
+                });
+            }
+            break;
+    }
+});
+
 function changeColor(direction) {
     if (direction === "prev") {
         currentColorIndex = (currentColorIndex - 1 + colorPalette.length) % colorPalette.length;
@@ -167,11 +221,41 @@ function handleCode(code, payload = {}) {
 
     switch (code) {
         case "0":
-            bringOverlayToFront();
+            // Up gesture - Toggle hand tracking pointer mode (works globally)
+            if (!handTracking.isRunning()) {
+                // Start hand tracking with pointer mode
+                handTracking.start(basePath);
+                if (win && win.webContents) {
+                    win.webContents.send("cmd", { type: "startHandPointer" });
+                }
+                setClickThrough(false);
+                showOverlayMessage("👆 Hand Pointer Mode ON");
+            } else {
+                // Stop hand tracking
+                handTracking.stop();
+                if (win && win.webContents) {
+                    win.webContents.send("cmd", { type: "stopHandPointer" });
+                }
+                setClickThrough(true);
+                showOverlayMessage("👆 Hand Pointer Mode OFF");
+            }
+            wsServer.sendHaptic("mode_pointer");
             break;
 
         case "1":
-            hideOverlay();
+            // Down gesture - Recording toggle (only in recording mode)
+            if (activeFeature === "recording") {
+                if (sttManager.isRecording()) {
+                    sttManager.stopRecording();
+                    showOverlayMessage("⏹ Recording Stopped");
+                } else {
+                    sttManager.startRecording();
+                    showOverlayMessage("🔴 Recording...");
+                }
+                wsServer.sendHaptic("recording_toggle");
+            } else {
+                showOverlayMessage("⚠️ Not in recording mode");
+            }
             break;
 
         case "2":
@@ -181,6 +265,11 @@ function handleCode(code, payload = {}) {
             setClickThrough(true);
             activeFeature = null;
             handTracking.stop();
+            // Stop STT if running
+            if (sttManager.isRecording()) {
+                sttManager.stopRecording();
+            }
+            sttManager.stop();
             if (timer.isRunning()) {
                 timer.stop();
             }
@@ -200,14 +289,16 @@ function handleCode(code, payload = {}) {
             break;
 
         case "5":
-            if (activeFeature && activeFeature !== "caption") {
+            // Circle CW - Enter recording mode (start STT service)
+            if (activeFeature && activeFeature !== "recording") {
                 showOverlayMessage("⚠️ Reset first");
                 return;
             }
-            activeFeature = "caption";
-            win.webContents.send("cmd", { type: "captionStart" });
+            activeFeature = "recording";
+            sttManager.start(basePath);
+            win.webContents.send("cmd", { type: "recordingModeEnter" });
             setClickThrough(true);
-            showOverlayMessage("🎙️ Caption Recording Started");
+            showOverlayMessage("🎙️ Recording Mode - Ready");
             wsServer.sendHaptic("recording_toggle");
             break;
 
@@ -238,13 +329,20 @@ function handleCode(code, payload = {}) {
             break;
 
         case "8":
-            if (activeFeature !== "caption") {
-                showOverlayMessage("⚠️ Not in caption mode");
+            // Circle CCW - Exit recording mode (stop STT service)
+            if (activeFeature !== "recording") {
+                showOverlayMessage("⚠️ Not in recording mode");
                 return;
             }
-            win.webContents.send("cmd", { type: "captionStopAndSummarize" });
+            // Stop recording if active
+            if (sttManager.isRecording()) {
+                sttManager.stopRecording();
+            }
+            sttManager.stop();
+            win.webContents.send("cmd", { type: "recordingModeExit" });
             setClickThrough(true);
-            showOverlayMessage("⏹ Caption Stop & Summarize");
+            activeFeature = null;
+            showOverlayMessage("⏹ Recording Mode Exit");
             wsServer.sendHaptic("recording_toggle");
             break;
 
@@ -357,12 +455,22 @@ function handleCode(code, payload = {}) {
         case "C":
         case "c":
         case "CALIBRATE":
-            if (handTracking.isRunning()) {
+            // Clear saved calibration when user explicitly requests new calibration
+            handTracking.clearSavedCalibration();
+
+            // Start hand tracking if not running, then calibrate
+            if (!handTracking.isRunning()) {
+                handTracking.start(basePath);
+                // Wait a bit for hand tracking to initialize
+                setTimeout(() => {
+                    win.webContents.send("cmd", { type: "CALIBRATE" });
+                    showOverlayMessage("📐 Calibration Started");
+                    wsServer.sendHaptic("calibration_point");
+                }, 1000);
+            } else {
                 win.webContents.send("cmd", { type: "CALIBRATE" });
                 showOverlayMessage("📐 Calibration");
                 wsServer.sendHaptic("calibration_point");
-            } else {
-                showOverlayMessage("⚠️ Start hand tracking first (H)");
             }
             break;
 
@@ -434,6 +542,87 @@ ipcMain.handle("send-to-handtracker", async (event, command) => {
     }
     handTracking.send(command);
     return true;
+});
+
+// ===== STT IPC handlers =====
+ipcMain.handle("stt-set-speaker", async (event, speaker) => {
+    currentSpeaker = speaker;
+    console.log(`[STT] Speaker changed to: ${speaker}`);
+    return true;
+});
+
+ipcMain.handle("stt-start-recording", async (event) => {
+    if (!sttManager.isRunning()) {
+        throw new Error("STT service not running");
+    }
+    return sttManager.startRecording();
+});
+
+ipcMain.handle("stt-stop-recording", async (event) => {
+    if (!sttManager.isRunning()) {
+        throw new Error("STT service not running");
+    }
+    return sttManager.stopRecording();
+});
+
+ipcMain.handle("stt-is-recording", async (event) => {
+    return sttManager.isRecording();
+});
+
+ipcMain.handle("stt-is-ready", async (event) => {
+    return sttManager.isMicReady();
+});
+
+ipcMain.handle("stt-request-summary", async (event, conversations) => {
+    try {
+        // Use local KoBART summarizer
+        console.log("[Summarizer] Requesting local summary for", conversations.length, "conversations");
+
+        // Start summarizer if not already running
+        if (!summarizerManager.isRunning()) {
+            console.log("[Summarizer] Starting summarizer service...");
+            await summarizerManager.start(basePath);
+            summarizerStarted = true;
+        }
+
+        // Wait for model to be ready
+        if (!summarizerManager.isReady()) {
+            console.log("[Summarizer] Waiting for model to load...");
+            // Give it some time
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            if (!summarizerManager.isReady()) {
+                throw new Error("Summarizer model not ready");
+            }
+        }
+
+        const result = await summarizerManager.summarize(conversations);
+        console.log("[Summarizer] Summary received:", result.summary?.substring(0, 50));
+        return result;
+    } catch (err) {
+        console.error("[Summarizer] Local summary failed:", err);
+
+        // Fallback to external API if local fails
+        try {
+            console.log("[Summarizer] Falling back to external API...");
+            const summaryUrl = config.api.summary_url;
+            const response = await fetch(summaryUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ conversations })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error: ${response.status}`);
+            }
+
+            const result = await response.json();
+            console.log("[Summarizer] API fallback summary received");
+            return result;
+        } catch (apiErr) {
+            console.error("[Summarizer] API fallback also failed:", apiErr);
+            return { error: `Local: ${err.message}, API: ${apiErr.message}` };
+        }
+    }
 });
 
 function registerDebugShortcuts() {
@@ -640,6 +829,8 @@ app.on("will-quit", () => {
     globalShortcut.unregisterAll();
     handTracking.stop();
     gestureController.stop();
+    sttManager.stop();
+    summarizerManager.stop();
     wsServer.stop();
 });
 

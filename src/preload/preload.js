@@ -26,4 +26,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
             return null;
         }
     },
+
+    // STT (Speech-to-Text) APIs
+    sttSetSpeaker: (speaker) => ipcRenderer.invoke("stt-set-speaker", speaker),
+    sttStartRecording: () => ipcRenderer.invoke("stt-start-recording"),
+    sttStopRecording: () => ipcRenderer.invoke("stt-stop-recording"),
+    sttIsRecording: () => ipcRenderer.invoke("stt-is-recording"),
+    sttIsReady: () => ipcRenderer.invoke("stt-is-ready"),
+    sttRequestSummary: (conversations) => ipcRenderer.invoke("stt-request-summary", conversations),
 });

@@ -7,7 +7,7 @@
     "start": "electron .",
     "start:direct": "electron . --direct",
     "dev": "electron . --dev",
-    "test-gesture": "python gesture_controller.py --stage1_ckpt ./models/stage1_best.pt --stage2_ckpt ./models/stage2_best.pt",
+    "test-gesture": "python py/gesture/gesture_controller.py --stage1_ckpt ./models/stage1_best.pt --stage2_ckpt ./models/stage2_best.pt",
     "install-deps": "npm install && pip install -r requirements.txt",
     "build": "electron-builder --win",
     "build:mac": "electron-builder --mac",
@@ -41,14 +41,6 @@
       "package.json"
     ],
     "extraResources": [
-      {
-        "from": "gesture_controller.py",
-        "to": "gesture_controller.py"
-      },
-      {
-        "from": "hand_tracker.py",
-        "to": "hand_tracker.py"
-      },
       {
         "from": "models",
         "to": "models"

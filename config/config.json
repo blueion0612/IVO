@@ -4,14 +4,14 @@
     "version": "3.0.0"
   },
   "imu": {
-    "udp_ip": "192.168.0.48",
+    "udp_ip": "1.229.37.23",
     "udp_port": 65000,
     "stage1_checkpoint": "./models/stage1_best.pt",
     "stage2_checkpoint": "./models/stage2_best.pt",
     "stage1_threshold": 0.5,
     "stage2_collection_sec": 2.5,
     "stage2_step_sec": 0.5,
-    "cooldown_sec": 2.0,
+    "cooldown_sec": 2,
     "device": "auto"
   },
   "websocket": {
@@ -30,37 +30,148 @@
   },
   "colors": {
     "palette": [
-      { "name": "Red", "value": "rgba(255, 0, 0, 0.8)" },
-      { "name": "Blue", "value": "rgba(0, 0, 255, 0.8)" },
-      { "name": "Green", "value": "rgba(0, 255, 0, 0.8)" },
-      { "name": "Yellow", "value": "rgba(255, 255, 0, 0.8)" },
-      { "name": "Purple", "value": "rgba(128, 0, 128, 0.8)" },
-      { "name": "Orange", "value": "rgba(255, 165, 0, 0.8)" },
-      { "name": "Black", "value": "rgba(0, 0, 0, 0.8)" },
-      { "name": "White", "value": "rgba(255, 255, 255, 0.8)" }
+      {
+        "name": "Red",
+        "value": "rgba(255, 0, 0, 0.8)"
+      },
+      {
+        "name": "Blue",
+        "value": "rgba(0, 0, 255, 0.8)"
+      },
+      {
+        "name": "Green",
+        "value": "rgba(0, 255, 0, 0.8)"
+      },
+      {
+        "name": "Yellow",
+        "value": "rgba(255, 255, 0, 0.8)"
+      },
+      {
+        "name": "Purple",
+        "value": "rgba(128, 0, 128, 0.8)"
+      },
+      {
+        "name": "Orange",
+        "value": "rgba(255, 165, 0, 0.8)"
+      },
+      {
+        "name": "Black",
+        "value": "rgba(0, 0, 0, 0.8)"
+      },
+      {
+        "name": "White",
+        "value": "rgba(255, 255, 255, 0.8)"
+      }
     ],
     "control_panel": [
-      { "type": "color", "name": "Red", "color": "rgba(255, 0, 0, 0.8)" },
-      { "type": "color", "name": "Yellow", "color": "rgba(255, 200, 0, 0.8)" },
-      { "type": "color", "name": "Green", "color": "rgba(0, 200, 0, 0.8)" },
-      { "type": "color", "name": "Blue", "color": "rgba(0, 100, 255, 0.8)" },
-      { "type": "color", "name": "Purple", "color": "rgba(200, 0, 255, 0.8)" },
-      { "type": "color", "name": "Black", "color": "rgba(0, 0, 0, 0.8)" },
-      { "type": "divider" },
-      { "type": "linewidth", "name": "2", "width": 2, "title": "Thin" },
-      { "type": "linewidth", "name": "4", "width": 4, "title": "Normal" },
-      { "type": "linewidth", "name": "8", "width": 8, "title": "Thick" },
-      { "type": "linewidth", "name": "12", "width": 12, "title": "Extra Thick" },
-      { "type": "divider" },
-      { "type": "function", "name": "🧹", "action": "ERASER", "title": "Eraser" },
-      { "type": "function", "name": "🗑️", "action": "CLEAR_ALL", "title": "Clear All" },
-      { "type": "divider" },
-      { "type": "function", "name": "📝", "action": "OCR_START", "title": "Start OCR Session" },
-      { "type": "function", "name": "TEXT", "action": "TEXT_OCR", "title": "Text OCR" },
-      { "type": "function", "name": "MATH", "action": "MATH_OCR", "title": "Math OCR" },
-      { "type": "divider" },
-      { "type": "function", "name": "👉", "action": "POINTER", "title": "Toggle Pointer/Drawing" },
-      { "type": "function", "name": "📐", "action": "CALIBRATE", "title": "Calibration" }
+      {
+        "type": "color",
+        "name": "Red",
+        "color": "rgba(255, 0, 0, 0.8)"
+      },
+      {
+        "type": "color",
+        "name": "Yellow",
+        "color": "rgba(255, 200, 0, 0.8)"
+      },
+      {
+        "type": "color",
+        "name": "Green",
+        "color": "rgba(0, 200, 0, 0.8)"
+      },
+      {
+        "type": "color",
+        "name": "Blue",
+        "color": "rgba(0, 100, 255, 0.8)"
+      },
+      {
+        "type": "color",
+        "name": "Purple",
+        "color": "rgba(200, 0, 255, 0.8)"
+      },
+      {
+        "type": "color",
+        "name": "Black",
+        "color": "rgba(0, 0, 0, 0.8)"
+      },
+      {
+        "type": "divider"
+      },
+      {
+        "type": "linewidth",
+        "name": "2",
+        "width": 2,
+        "title": "Thin"
+      },
+      {
+        "type": "linewidth",
+        "name": "4",
+        "width": 4,
+        "title": "Normal"
+      },
+      {
+        "type": "linewidth",
+        "name": "8",
+        "width": 8,
+        "title": "Thick"
+      },
+      {
+        "type": "linewidth",
+        "name": "12",
+        "width": 12,
+        "title": "Extra Thick"
+      },
+      {
+        "type": "divider"
+      },
+      {
+        "type": "function",
+        "name": "🧹",
+        "action": "ERASER",
+        "title": "Eraser"
+      },
+      {
+        "type": "function",
+        "name": "🗑️",
+        "action": "CLEAR_ALL",
+        "title": "Clear All"
+      },
+      {
+        "type": "divider"
+      },
+      {
+        "type": "function",
+        "name": "📝",
+        "action": "OCR_START",
+        "title": "Start OCR Session"
+      },
+      {
+        "type": "function",
+        "name": "TEXT",
+        "action": "TEXT_OCR",
+        "title": "Text OCR"
+      },
+      {
+        "type": "function",
+        "name": "MATH",
+        "action": "MATH_OCR",
+        "title": "Math OCR"
+      },
+      {
+        "type": "divider"
+      },
+      {
+        "type": "function",
+        "name": "👉",
+        "action": "POINTER",
+        "title": "Toggle Pointer/Drawing"
+      },
+      {
+        "type": "function",
+        "name": "📐",
+        "action": "CALIBRATE",
+        "title": "Calibration"
+      }
     ]
   },
   "gesture_mapping": {
@@ -117,10 +228,10 @@
   "gesture_display_names": {
     "left": "Previous Slide",
     "right": "Next Slide",
-    "up": "Overlay ON",
-    "down": "Overlay OFF",
-    "circle_cw": "Start Recording",
-    "circle_ccw": "Stop Recording",
+    "up": "Pointer Mode",
+    "down": "Record Toggle",
+    "circle_cw": "Recording Mode",
+    "circle_ccw": "Exit Recording",
     "double_tap": "Hand Drawing",
     "x": "Reset All",
     "square": "Calibration",
@@ -132,29 +243,91 @@
     "triangle": "Blackout"
   },
   "gesture_list": [
-    { "icon": "⬅️", "name": "Left", "desc": "Previous Slide" },
-    { "icon": "➡️", "name": "Right", "desc": "Next Slide" },
-    { "icon": "⬆️", "name": "Up", "desc": "Overlay ON" },
-    { "icon": "⬇️", "name": "Down", "desc": "Overlay OFF" },
-    { "icon": "🔄", "name": "Circle CW", "desc": "Start Recording" },
-    { "icon": "🔄", "name": "Circle CCW", "desc": "Stop Recording" },
-    { "icon": "⏪", "name": "Double Left", "desc": "Jump -3 slides" },
-    { "icon": "⏩", "name": "Double Right", "desc": "Jump +3 slides" },
-    { "icon": "❌", "name": "X", "desc": "Reset All" },
-    { "icon": "👆👆", "name": "Double Tap", "desc": "Hand Drawing" },
-    { "icon": "↩️", "name": "90° Left", "desc": "OCR Start" },
-    { "icon": "↪️", "name": "90° Right", "desc": "Toggle Draw/Pointer" },
-    { "icon": "♾️", "name": "Figure 8", "desc": "Timer Toggle" },
-    { "icon": "⬜", "name": "Square", "desc": "Calibrate" },
-    { "icon": "🔺", "name": "Triangle", "desc": "Blackout" }
+    {
+      "icon": "⬅️",
+      "name": "Left",
+      "desc": "Previous Slide"
+    },
+    {
+      "icon": "➡️",
+      "name": "Right",
+      "desc": "Next Slide"
+    },
+    {
+      "icon": "⬆️",
+      "name": "Up",
+      "desc": "Pointer Mode"
+    },
+    {
+      "icon": "⬇️",
+      "name": "Down",
+      "desc": "Record Toggle"
+    },
+    {
+      "icon": "🔃",
+      "name": "Circle CW",
+      "desc": "Recording Mode"
+    },
+    {
+      "icon": "🔄",
+      "name": "Circle CCW",
+      "desc": "Exit Recording"
+    },
+    {
+      "icon": "⏪",
+      "name": "Double Left",
+      "desc": "Jump -3 slides"
+    },
+    {
+      "icon": "⏩",
+      "name": "Double Right",
+      "desc": "Jump +3 slides"
+    },
+    {
+      "icon": "❌",
+      "name": "X",
+      "desc": "Reset All"
+    },
+    {
+      "icon": "👆👆",
+      "name": "Double Tap",
+      "desc": "Hand Drawing"
+    },
+    {
+      "icon": "↩️",
+      "name": "90° Left",
+      "desc": "OCR Start"
+    },
+    {
+      "icon": "↪️",
+      "name": "90° Right",
+      "desc": "Toggle Draw/Pointer"
+    },
+    {
+      "icon": "♾️",
+      "name": "Figure 8",
+      "desc": "Timer Toggle"
+    },
+    {
+      "icon": "⬜",
+      "name": "Square",
+      "desc": "Calibrate"
+    },
+    {
+      "icon": "🔺",
+      "name": "Triangle",
+      "desc": "Blackout"
+    }
   ],
   "paths": {
-    "hand_tracker": "./hand_tracker.py",
-    "gesture_controller": "./gesture_controller.py",
+    "hand_tracker": "./py/vision/hand_tracker.py",
+    "gesture_controller": "./py/gesture/gesture_controller.py",
+    "stt_script": "./py/stt/stt_server.py",
+    "summarizer_script": "./py/stt/qa_summarizer_server.py",
     "python_scripts": "./py/",
-    "ocr_script": "./py/ink_ocr_cli.py",
-    "calc_script": "./py/calc_cli.py",
-    "graph_script": "./py/graph_cli.py"
+    "ocr_script": "./py/ocr/ink_ocr_cli.py",
+    "calc_script": "./py/ocr/calc_cli.py",
+    "graph_script": "./py/ocr/graph_cli.py"
   },
   "python": {
     "env": {
@@ -169,18 +342,66 @@
     "verbose": false,
     "log_file": "./logs/gesture_controller.log",
     "shortcuts": {
-      "F1": { "code": "3", "name": "Previous Slide", "gesture": "left" },
-      "F2": { "code": "4", "name": "Next Slide", "gesture": "right" },
-      "F3": { "code": "0", "name": "Overlay ON", "gesture": "up" },
-      "F4": { "code": "1", "name": "Overlay OFF", "gesture": "down" },
-      "F5": { "code": "5", "name": "Start Recording", "gesture": "circle_cw" },
-      "F6": { "code": "8", "name": "Stop Recording", "gesture": "circle_ccw" },
-      "F7": { "code": "JUMP_3_PREV", "name": "Jump -3 Slides", "gesture": "double_left" },
-      "F8": { "code": "JUMP_3_NEXT", "name": "Jump +3 Slides", "gesture": "double_right" },
-      "F9": { "code": "2", "name": "Reset All", "gesture": "x" },
-      "F10": { "code": "6", "name": "Hand Drawing", "gesture": "double_tap" },
-      "F11": { "code": "TIMER_TOGGLE", "name": "Timer Toggle", "gesture": "figure_eight" },
-      "F12": { "code": "BLACKOUT", "name": "Blackout", "gesture": "triangle" }
+      "F1": {
+        "code": "3",
+        "name": "Previous Slide",
+        "gesture": "left"
+      },
+      "F2": {
+        "code": "4",
+        "name": "Next Slide",
+        "gesture": "right"
+      },
+      "F3": {
+        "code": "0",
+        "name": "Pointer Mode",
+        "gesture": "up"
+      },
+      "F4": {
+        "code": "1",
+        "name": "Record Toggle",
+        "gesture": "down"
+      },
+      "F5": {
+        "code": "5",
+        "name": "Recording Mode",
+        "gesture": "circle_cw"
+      },
+      "F6": {
+        "code": "8",
+        "name": "Exit Recording",
+        "gesture": "circle_ccw"
+      },
+      "F7": {
+        "code": "JUMP_3_PREV",
+        "name": "Jump -3 Slides",
+        "gesture": "double_left"
+      },
+      "F8": {
+        "code": "JUMP_3_NEXT",
+        "name": "Jump +3 Slides",
+        "gesture": "double_right"
+      },
+      "F9": {
+        "code": "2",
+        "name": "Reset All",
+        "gesture": "x"
+      },
+      "F10": {
+        "code": "6",
+        "name": "Hand Drawing",
+        "gesture": "double_tap"
+      },
+      "F11": {
+        "code": "TIMER_TOGGLE",
+        "name": "Timer Toggle",
+        "gesture": "figure_eight"
+      },
+      "F12": {
+        "code": "BLACKOUT",
+        "name": "Blackout",
+        "gesture": "triangle"
+      }
     },
     "special_shortcuts": {
       "Ctrl+Shift+1": "GESTURE_DETECT_TEST",

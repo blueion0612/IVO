@@ -1,4 +1,4 @@
-// Hand tracking Python process manager
+// STT Manager - Local Whisper-based Speech-to-Text process manager
 const path = require("path");
 const fs = require("fs");
 const { spawn } = require("child_process");
@@ -7,15 +7,14 @@ const { app } = require("electron");
 
 const isWin = process.platform === "win32";
 
-class HandTrackingManager {
+class STTManager {
     constructor(config) {
         this.config = config;
         this.process = null;
         this.stdin = null;
         this.messageHandler = null;
-
-        // Persist calibration across process restarts
-        this.savedCalibrationRegion = null;
+        this.isRecordingActive = false;
+        this.isMicrophoneReady = false;
     }
 
     findPythonPath() {
@@ -45,7 +44,7 @@ class HandTrackingManager {
 
         for (const candidate of absoluteCandidates) {
             if (candidate && fs.existsSync(candidate)) {
-                console.log(`[HandTracking] Found Python at: ${candidate}`);
+                console.log(`[STT] Found Python at: ${candidate}`);
                 return candidate;
             }
         }
@@ -59,14 +58,14 @@ class HandTrackingManager {
                 timeout: 5000
             }).trim().split('\n')[0].trim();
             if (result && fs.existsSync(result)) {
-                console.log(`[HandTracking] Found Python via ${isWin ? 'where' : 'which'}: ${result}`);
+                console.log(`[STT] Found Python via ${isWin ? 'where' : 'which'}: ${result}`);
                 return result;
             }
         } catch (e) {
             // Command failed
         }
 
-        console.error("[HandTracking] Python not found!");
+        console.error("[STT] Python not found!");
         return null;
     }
 
@@ -74,13 +73,12 @@ class HandTrackingManager {
      * Find script path (supports both dev and packaged environments)
      */
     findScriptPath(basePath) {
-        const scriptName = this.config.paths.hand_tracker.replace(/^\.\//, '');
+        const scriptName = this.config.paths?.stt_script || "stt_server.py";
 
         // Possible paths in priority order
         const possiblePaths = [
             // 1. Dev environment: direct reference from basePath
             path.join(basePath, scriptName),
-            path.join(basePath, this.config.paths.hand_tracker),
             // 2. Packaged: extraResources folder
             path.join(process.resourcesPath || '', scriptName),
             // 3. Packaged: next to app folder
@@ -92,48 +90,49 @@ class HandTrackingManager {
 
         for (const p of possiblePaths) {
             if (fs.existsSync(p)) {
-                console.log(`[HandTracking] Found script at: ${p}`);
+                console.log(`[STT] Found script at: ${p}`);
                 return p;
             }
         }
 
-        console.error("[HandTracking] Script not found!");
+        console.error("[STT] Script not found!");
         return null;
     }
 
     /**
-     * Start hand tracking
+     * Start STT service (loads Whisper model)
      * @param {string} basePath - Base path for script lookup
      */
     start(basePath) {
         if (this.process) {
-            console.log("[HandTracking] Already running");
+            console.log("[STT] Already running");
             return;
         }
 
-        console.log("[HandTracking] Starting Python process...");
+        console.log("[STT] Starting STT service...");
 
         const pythonCmd = this.findPythonPath();
         if (!pythonCmd) {
-            console.error("[HandTracking] Cannot start - Python not found");
+            console.error("[STT] Cannot start - Python not found");
             return;
         }
 
         const scriptPath = this.findScriptPath(basePath);
         if (!scriptPath) {
-            console.error("[HandTracking] Cannot start - Script not found");
+            console.error("[STT] Cannot start - Script not found");
             return;
         }
 
         const scriptDir = path.dirname(scriptPath);
 
         // Set environment variables
-        const env = { ...process.env, ...this.config.python.env };
+        const env = { ...process.env };
         env.PYTHONIOENCODING = "utf-8";
         env.PYTHONUNBUFFERED = "1";
+        env.KMP_DUPLICATE_LIB_OK = "TRUE";
 
-        console.log(`[HandTracking] Python: ${pythonCmd}`);
-        console.log(`[HandTracking] Script: ${scriptPath}`);
+        console.log(`[STT] Python: ${pythonCmd}`);
+        console.log(`[STT] Script: ${scriptPath}`);
 
         try {
             this.process = spawn(pythonCmd, [scriptPath], {
@@ -143,12 +142,12 @@ class HandTrackingManager {
                 stdio: ['pipe', 'pipe', 'pipe']
             });
         } catch (err) {
-            console.error("[HandTracking] Failed to spawn:", err.message);
+            console.error("[STT] Failed to spawn:", err.message);
             return;
         }
 
         this.process.on("error", (err) => {
-            console.error("[HandTracking] Process error:", err.message);
+            console.error("[STT] Process error:", err.message);
             this.process = null;
             this.stdin = null;
         });
@@ -166,23 +165,9 @@ class HandTrackingManager {
 
             try {
                 const msg = JSON.parse(line);
-
-                // When Python process is ready, restore saved calibration if exists
-                if (msg.type === "ready" && this.savedCalibrationRegion) {
-                    console.log("[HandTracking] Restoring saved calibration...");
-                    setTimeout(() => {
-                        this.send({
-                            command: "set_calibration",
-                            region: this.savedCalibrationRegion
-                        });
-                    }, 100); // Small delay to ensure Python is fully ready
-                }
-
-                if (this.messageHandler) {
-                    this.messageHandler(msg);
-                }
+                this.handleSTTMessage(msg);
             } catch (e) {
-                console.log("[HandTracking] Raw:", line);
+                console.log("[STT] Raw:", line);
             }
         });
 
@@ -192,28 +177,60 @@ class HandTrackingManager {
             lines.forEach(line => {
                 line = line.trim();
                 if (!line) return;
-
-                // Filter MediaPipe warnings
+                // Filter common warnings
                 if (line.includes("WARNING") ||
                     line.includes("INFO") ||
-                    line.includes("I0000") ||
-                    line.includes("mediapipe") ||
-                    line.includes("Feedback")) {
+                    line.includes("FutureWarning")) {
                     return;
                 }
-                console.error("[HandTracking stderr]", line);
+                console.error("[STT stderr]", line);
             });
         });
 
         this.process.on("close", (code) => {
-            console.log(`[HandTracking] Process exited with code ${code}`);
+            console.log(`[STT] Process exited with code ${code}`);
             this.process = null;
             this.stdin = null;
+            this.isMicrophoneReady = false;
         });
     }
 
     /**
-     * Stop hand tracking
+     * Handle STT messages
+     */
+    handleSTTMessage(msg) {
+        switch (msg.type) {
+            case "ready":
+                console.log("[STT] Service ready - Whisper model loaded");
+                this.isMicrophoneReady = true;
+                break;
+
+            case "recording_started":
+                console.log("[STT] Recording started");
+                this.isRecordingActive = true;
+                break;
+
+            case "recording_stopped":
+                console.log("[STT] Recording stopped");
+                this.isRecordingActive = false;
+                break;
+
+            case "transcription":
+                console.log(`[STT] Transcription: ${msg.text} (${msg.lang}, ${(msg.prob * 100).toFixed(1)}%)`);
+                break;
+
+            case "error":
+                console.error("[STT] Error:", msg.message);
+                break;
+        }
+
+        if (this.messageHandler) {
+            this.messageHandler(msg);
+        }
+    }
+
+    /**
+     * Stop STT service
      */
     stop() {
         if (!this.process) return;
@@ -229,18 +246,45 @@ class HandTrackingManager {
                 this.stdin = null;
             }
         }, 500);
+
+        this.isMicrophoneReady = false;
+        this.isRecordingActive = false;
     }
 
     /**
-     * Send command to hand tracker
-     * @param {Object} command - Command object to send
+     * Start recording (microphone capture)
      */
-    send(command) {
+    startRecording() {
         if (!this.stdin) {
-            console.log("[HandTracking] Process not running");
+            console.log("[STT] Process not running");
             return false;
         }
-        const cmd = JSON.stringify(command) + '\n';
+
+        if (this.isRecordingActive) {
+            console.log("[STT] Already recording");
+            return false;
+        }
+
+        const cmd = JSON.stringify({ command: "start" }) + '\n';
+        this.stdin.write(cmd);
+        return true;
+    }
+
+    /**
+     * Stop recording and get transcription
+     */
+    stopRecording() {
+        if (!this.stdin) {
+            console.log("[STT] Process not running");
+            return false;
+        }
+
+        if (!this.isRecordingActive) {
+            console.log("[STT] Not recording");
+            return false;
+        }
+
+        const cmd = JSON.stringify({ command: "stop" }) + '\n';
         this.stdin.write(cmd);
         return true;
     }
@@ -250,33 +294,7 @@ class HandTrackingManager {
      * @param {Function} handler - Message handler function
      */
     onMessage(handler) {
-        // Wrap handler to intercept calibration_done messages
-        this.messageHandler = (msg) => {
-            // Save calibration region when calibration completes
-            if (msg.type === "calibration_done" && msg.region) {
-                this.savedCalibrationRegion = msg.region;
-                console.log("[HandTracking] Calibration saved:", JSON.stringify(msg.region));
-            }
-            // Forward message to original handler
-            if (handler) {
-                handler(msg);
-            }
-        };
-    }
-
-    /**
-     * Clear saved calibration (call when user explicitly requests reset)
-     */
-    clearSavedCalibration() {
-        this.savedCalibrationRegion = null;
-        console.log("[HandTracking] Saved calibration cleared");
-    }
-
-    /**
-     * Get saved calibration region
-     */
-    getSavedCalibration() {
-        return this.savedCalibrationRegion;
+        this.messageHandler = handler;
     }
 
     /**
@@ -285,6 +303,20 @@ class HandTrackingManager {
     isRunning() {
         return this.process !== null;
     }
+
+    /**
+     * Check if recording is active
+     */
+    isRecording() {
+        return this.isRecordingActive;
+    }
+
+    /**
+     * Check if microphone is ready
+     */
+    isMicReady() {
+        return this.isMicrophoneReady;
+    }
 }
 
-module.exports = HandTrackingManager;
+module.exports = STTManager;

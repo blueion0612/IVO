@@ -13,6 +13,7 @@ import { CalibrationManager } from './modules/calibration.js';
 import { RecordingManager } from './modules/recording.js';
 import { OverlayUI } from './modules/overlay-ui.js';
 import { SummaryStack } from './modules/summary-stack.js';
+import { ConversationStack } from './modules/conversation-stack.js';
 
 // Load configuration
 const config = {
@@ -28,10 +29,10 @@ const config = {
     gesture_display_names: {
         "left": "Previous Slide",
         "right": "Next Slide",
-        "up": "Overlay ON",
-        "down": "Overlay OFF",
-        "circle_cw": "Start Recording",
-        "circle_ccw": "Stop Recording",
+        "up": "Pointer Mode",
+        "down": "Record Toggle",
+        "circle_cw": "Recording Mode",
+        "circle_ccw": "Exit Recording",
         "double_tap": "Hand Drawing",
         "x": "Reset All",
         "square": "Calibration",
@@ -45,10 +46,10 @@ const config = {
     gesture_list: [
         { icon: "⬅️", name: "Left", desc: "Previous Slide" },
         { icon: "➡️", name: "Right", desc: "Next Slide" },
-        { icon: "⬆️", name: "Up", desc: "Overlay ON" },
-        { icon: "⬇️", name: "Down", desc: "Overlay OFF" },
-        { icon: "🔄", name: "Circle CW", desc: "Start Recording" },
-        { icon: "🔄", name: "Circle CCW", desc: "Stop Recording" },
+        { icon: "⬆️", name: "Up", desc: "Pointer Mode" },
+        { icon: "⬇️", name: "Down", desc: "Record Toggle" },
+        { icon: "🔃", name: "Circle CW", desc: "Recording Mode" },
+        { icon: "🔄", name: "Circle CCW", desc: "Exit Recording" },
         { icon: "⏪", name: "Double Left", desc: "Jump -3 slides" },
         { icon: "⏩", name: "Double Right", desc: "Jump +3 slides" },
         { icon: "❌", name: "X", desc: "Reset All" },
@@ -93,6 +94,7 @@ const overlayRoot = document.getElementById("overlay-root");
 
 // State
 let handDrawingMode = false;
+let handPointerMode = false;  // Hand tracking pointer-only mode (no drawing)
 let isProcessingCommand = false;
 let activeMode = null;
 
@@ -105,6 +107,7 @@ const overlayUI = new OverlayUI();
 const ocrManager = new OCRManager(overlayRoot, (msg) => gestureUI.showWarning(msg), config);
 const recording = new RecordingManager(config, caption, (msg) => gestureUI.showWarning(msg));
 const summaryStack = new SummaryStack();
+const conversationStack = new ConversationStack();
 
 // ===== OCR Manager callback setup (ID-based) =====
 
@@ -476,25 +479,28 @@ window.electronAPI?.onCmd((data) => {
             isProcessingCommand = false;
             activeMode = null;
             handDrawingMode = false;
-            
+            handPointerMode = false;
+
             canvasDrawing.setDrawingMode(false);
             canvasDrawing.clear();
-            
+
             handCursor.hide();
             handCursor.setPointerMode(false);
             handCursor.setDrawingEnabled(false);
-            
+
             controlPanel.hide();
             calibration.reset();
             recording.stop();
             recording.hideIndicator();
-            
+
             overlayUI.hidePointer();
             hideOCRSessionIndicator();
 
             caption.style.display = "none";
             ocrManager.clearAll();
             summaryStack.clearAll();
+            conversationStack.exitRecordingMode();
+            conversationStack.hide();
 
             console.log("[Control] All reset");
             break;
@@ -551,7 +557,8 @@ window.electronAPI?.onCmd((data) => {
             break;
 
         case "handCursor":
-            if (!handDrawingMode) return;
+            // Allow hand cursor in both drawing mode and pointer-only mode
+            if (!handDrawingMode && !handPointerMode) return;
 
             const screenPos = handCursor.updatePosition(data.position);
 
@@ -559,6 +566,18 @@ window.electronAPI?.onCmd((data) => {
                 return;
             }
 
+            // In pointer-only mode, enable UI interaction via hover-dwell (no drawing)
+            if (handPointerMode) {
+                if (screenPos) {
+                    // Check hover on conversation stack (STT panel) - uses dwell-click
+                    conversationStack.checkHover(screenPos.x, screenPos.y);
+                    // Check hover on OCR elements
+                    ocrManager.checkHoverElements(screenPos.x, screenPos.y);
+                }
+                return;
+            }
+
+            // Drawing mode logic
             if (!handCursor.pointerMode) {
                 if (data.drawing !== handCursor.isDrawingEnabled) {
                     handCursor.setDrawingEnabled(data.drawing);
@@ -576,6 +595,7 @@ window.electronAPI?.onCmd((data) => {
             if (screenPos && !handCursor.isDrawingEnabled) {
                 controlPanel.checkHover(screenPos.x, screenPos.y);
                 ocrManager.checkHoverElements(screenPos.x, screenPos.y);
+                conversationStack.checkHover(screenPos.x, screenPos.y);
             }
             break;
 
@@ -703,6 +723,81 @@ window.electronAPI?.onCmd((data) => {
                 gestureUI.showNotice(isPointer ? "Pointer Mode" : "Drawing Mode", isPointer ? "#2196F3" : "#4CAF50");
                 console.log(`[Control] Toggle: ${isPointer ? "Pointer" : "Drawing"} mode`);
             }
+            break;
+
+        // ===== Global Hand Pointer Mode (Up gesture) =====
+        case "startHandPointer":
+            // Start hand tracking in pointer-only mode (no drawing)
+            handPointerMode = true;
+            handCursor.show();
+            handCursor.setPointerMode(true);
+            handCursor.setDrawingEnabled(false);
+            gestureUI.showNotice("👆 Hand Pointer Mode ON", "#2196F3");
+            console.log("[Control] Hand pointer mode started");
+            break;
+
+        case "stopHandPointer":
+            // Stop hand tracking pointer mode
+            handPointerMode = false;
+            handCursor.hide();
+            handCursor.setPointerMode(false);
+            overlayUI.hidePointer();
+            gestureUI.showNotice("👆 Hand Pointer Mode OFF", "#FF9800");
+            console.log("[Control] Hand pointer mode stopped");
+            break;
+
+        case "toggleGlobalPointer":
+            // Legacy: mouse-based pointer toggle
+            overlayUI.togglePointer();
+            const globalPointerEnabled = overlayUI.isPointerMode();
+            gestureUI.showNotice(globalPointerEnabled ? "👆 Pointer Mode ON" : "👆 Pointer Mode OFF", "#2196F3");
+            console.log(`[Control] Global pointer mode: ${globalPointerEnabled}`);
+            break;
+
+        // ===== STT Recording Mode Events =====
+        case "recordingModeEnter":
+            conversationStack.enterRecordingMode();
+            gestureUI.showNotice("🎙️ Recording Mode Ready", "#4CAF50");
+            console.log("[STT] Recording mode entered");
+            break;
+
+        case "recordingModeExit":
+            conversationStack.exitRecordingMode();
+            gestureUI.showNotice("⏹ Recording Mode Exit", "#FF9800");
+            console.log("[STT] Recording mode exited");
+            break;
+
+        case "sttReady":
+            gestureUI.showNotice("🎙️ STT Service Ready", "#4CAF50");
+            console.log("[STT] Service ready");
+            break;
+
+        case "sttRecordingStarted":
+            conversationStack.setRecordingState(true);
+            gestureUI.showNotice("🔴 Recording...", "#f44336");
+            console.log("[STT] Recording started");
+            break;
+
+        case "sttRecordingStopped":
+            conversationStack.setRecordingState(false);
+            gestureUI.showNotice("⏹ Recording Stopped", "#FF9800");
+            console.log("[STT] Recording stopped");
+            break;
+
+        case "sttTranscription":
+            // Add transcription to conversation stack with speaker info
+            if (data.text && data.text.trim()) {
+                conversationStack.addConversation(data.text, data.speaker);
+                gestureUI.showActionToast("STT Complete", "success", 1500);
+                console.log(`[STT] Transcription: [${data.speaker}] ${data.text}`);
+            } else {
+                gestureUI.showWarning("No speech detected");
+            }
+            break;
+
+        case "sttError":
+            gestureUI.showWarning(`STT Error: ${data.message}`);
+            console.error("[STT] Error:", data.message);
             break;
     }
 });
