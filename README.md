@@ -93,6 +93,7 @@ This architecture minimizes false positives while maintaining responsiveness.
 - **Node.js** 18.x or higher
 - **Python** 3.9 or higher
 - **npm** 9.x or higher
+- **IMU Streaming App** (for gesture control): [Download from GitHub](https://github.com/blueion0612/IMU_Stream_APP_MJU)
 
 ### Step 1: Clone Repository
 
@@ -520,7 +521,7 @@ matplotlib>=3.7.0
 - **Computer**: Windows 10/11 or macOS 10.14+
 - **Webcam**: For hand tracking (optional)
 - **Smartwatch**: WearOS device with IMU sensors
-- **Smartphone**: Android device as relay
+- **Smartphone**: Android device with [IMU Streaming App](https://github.com/blueion0612/IMU_Stream_APP_MJU)
 
 ---
 
