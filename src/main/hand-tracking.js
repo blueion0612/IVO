@@ -68,21 +68,21 @@ class HandTrackingManager {
     }
 
     /**
-     * 스크립트 경로 찾기 (개발/패키징 환경 모두 지원)
+     * Find script path (supports both dev and packaged environments)
      */
     findScriptPath(basePath) {
         const scriptName = this.config.paths.hand_tracker.replace(/^\.\//, '');
 
-        // 가능한 경로들 (우선순위 순)
+        // Possible paths in priority order
         const possiblePaths = [
-            // 1. 개발 환경: basePath에서 직접 참조
+            // 1. Dev environment: direct reference from basePath
             path.join(basePath, scriptName),
             path.join(basePath, this.config.paths.hand_tracker),
-            // 2. 패키징 환경: extraResources 폴더
+            // 2. Packaged: extraResources folder
             path.join(process.resourcesPath || '', scriptName),
-            // 3. 패키징 환경: app 폴더 옆
+            // 3. Packaged: next to app folder
             path.join(app.getAppPath(), '..', scriptName),
-            // 4. 실행 파일과 같은 폴더
+            // 4. Same folder as executable
             path.join(path.dirname(process.execPath), scriptName),
             path.join(path.dirname(process.execPath), 'resources', scriptName),
         ];
@@ -99,8 +99,8 @@ class HandTrackingManager {
     }
 
     /**
-     * Hand tracking 시작
-     * @param {string} basePath - 기본 경로
+     * Start hand tracking
+     * @param {string} basePath - Base path for script lookup
      */
     start(basePath) {
         if (this.process) {
@@ -124,7 +124,7 @@ class HandTrackingManager {
 
         const scriptDir = path.dirname(scriptPath);
 
-        // 환경 변수 설정
+        // Set environment variables
         const env = { ...process.env, ...this.config.python.env };
         env.PYTHONIOENCODING = "utf-8";
         env.PYTHONUNBUFFERED = "1";
@@ -178,7 +178,7 @@ class HandTrackingManager {
                 line = line.trim();
                 if (!line) return;
 
-                // MediaPipe 경고 필터링
+                // Filter MediaPipe warnings
                 if (line.includes("WARNING") ||
                     line.includes("INFO") ||
                     line.includes("I0000") ||
@@ -198,7 +198,7 @@ class HandTrackingManager {
     }
 
     /**
-     * Hand tracking 중지
+     * Stop hand tracking
      */
     stop() {
         if (!this.process) return;
@@ -217,8 +217,8 @@ class HandTrackingManager {
     }
 
     /**
-     * Hand tracker에 명령 전송
-     * @param {Object} command - 전송할 명령 객체
+     * Send command to hand tracker
+     * @param {Object} command - Command object to send
      */
     send(command) {
         if (!this.stdin) {
@@ -231,15 +231,15 @@ class HandTrackingManager {
     }
 
     /**
-     * 메시지 핸들러 설정
-     * @param {Function} handler - 메시지 처리 함수
+     * Set message handler callback
+     * @param {Function} handler - Message handler function
      */
     onMessage(handler) {
         this.messageHandler = handler;
     }
 
     /**
-     * 실행 중인지 확인
+     * Check if process is running
      */
     isRunning() {
         return this.process !== null;

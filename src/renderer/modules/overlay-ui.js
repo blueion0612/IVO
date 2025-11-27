@@ -1,5 +1,5 @@
 // src/renderer/modules/overlay-ui.js
-// 오버레이 UI 요소 관리 모듈 (타이머, 블랙아웃, 포인터 등)
+// Overlay UI element management module (timer, blackout, pointer, etc.)
 
 export class OverlayUI {
     constructor() {

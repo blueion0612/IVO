@@ -1,9 +1,9 @@
 // src/renderer/overlay.js
 // ======================================================================
-// Production-ready 통합 오버레이 - 모듈화 버전 v3.0.0
+// Production-ready integrated overlay - Modular version v3.0.0
 // ======================================================================
 
-// 모듈 임포트
+// Module imports
 import { CanvasDrawing } from './modules/canvas-drawing.js';
 import { GestureUI } from './modules/gesture-ui.js';
 import { HandCursor } from './modules/hand-cursor.js';
@@ -14,7 +14,7 @@ import { RecordingManager } from './modules/recording.js';
 import { OverlayUI } from './modules/overlay-ui.js';
 import { SummaryStack } from './modules/summary-stack.js';
 
-// 설정 로드
+// Load configuration
 const config = {
     overlay: {
         default_color: "rgba(255, 0, 0, 0.8)",
@@ -86,17 +86,17 @@ const config = {
     }
 };
 
-// DOM 요소
+// DOM elements
 const canvas = document.getElementById("overlay");
 const caption = document.getElementById("caption");
 const overlayRoot = document.getElementById("overlay-root");
 
-// 상태
+// State
 let handDrawingMode = false;
 let isProcessingCommand = false;
 let activeMode = null;
 
-// 모듈 인스턴스
+// Module instances
 const canvasDrawing = new CanvasDrawing(canvas, config);
 const gestureUI = new GestureUI(config);
 const handCursor = new HandCursor(config);
@@ -106,9 +106,9 @@ const ocrManager = new OCRManager(overlayRoot, (msg) => gestureUI.showWarning(ms
 const recording = new RecordingManager(config, caption, (msg) => gestureUI.showWarning(msg));
 const summaryStack = new SummaryStack();
 
-// ===== OCR Manager 콜백 설정 (ID 기반) =====
+// ===== OCR Manager callback setup (ID-based) =====
 
-// 궤적 지우기 콜백
+// Stroke clearing callback
 ocrManager.setOnClearStrokes((pathIds) => {
     if (pathIds && pathIds.length > 0) {
         canvasDrawing.clearPathsByIds(pathIds);
@@ -116,7 +116,7 @@ ocrManager.setOnClearStrokes((pathIds) => {
     }
 });
 
-// 궤적 색상 변경 콜백
+// Stroke color change callback
 ocrManager.setOnChangeStrokesColor((pathIds, newColor) => {
     if (pathIds && pathIds.length > 0) {
         canvasDrawing.changePathsColorByIds(pathIds, newColor);
@@ -124,13 +124,13 @@ ocrManager.setOnChangeStrokesColor((pathIds, newColor) => {
     }
 });
 
-// ===== Recording Summary 콜백 설정 =====
+// ===== Recording Summary callback setup =====
 recording.setOnSummaryReceived((summary) => {
     summaryStack.addSummary(summary);
     gestureUI.showActionToast("Summary Received", "success", 2000);
 });
 
-// ===== OCR 세션 상태 표시 UI =====
+// ===== OCR session status indicator UI =====
 let ocrSessionIndicator = null;
 
 function showOCRSessionIndicator() {
@@ -180,7 +180,7 @@ function hideOCRSessionIndicator() {
     }
 }
 
-// ===== 컨트롤 패널 액션 핸들러 =====
+// ===== Control panel action handler =====
 function handleControlAction(action, data) {
     switch (action) {
         case "COLOR_SELECT":
@@ -252,7 +252,7 @@ function handleControlAction(action, data) {
 
 const controlPanel = new ControlPanel(config, handleControlAction);
 
-// ===== OCR 세션 시작 핸들러 =====
+// ===== OCR session start handler =====
 
 function handleOCRStart() {
     if (canvasDrawing.isOCRSessionActive()) {
@@ -268,7 +268,7 @@ function handleOCRStart() {
     }
 }
 
-// ===== OCR 핸들러 =====
+// ===== OCR handlers =====
 
 async function handleTextOCR() {
     const hasSession = canvasDrawing.isOCRSessionActive() || canvasDrawing.sessionCanvas;
@@ -281,7 +281,7 @@ async function handleTextOCR() {
         return;
     }
 
-    // 세션의 path ID 목록 가져오기
+    // Get session path ID list
     let pathIds = null;
     if (hasSession) {
         pathIds = canvasDrawing.getSessionPathIds();
@@ -312,15 +312,15 @@ async function handleTextOCR() {
         
         const text = res.text || "";
 
-        if (text && !text.includes("미설정") && !text.includes("ERROR")) {
-            // pathIds를 함께 전달
+        if (text && !text.includes("not set") && !text.includes("ERROR")) {
+            // Pass pathIds together
             ocrManager.addResult('text', text, bounds, pathIds);
             gestureUI.showNotice("Text recognized!", "#4CAF50");
         } else {
             gestureUI.showWarning("No text recognized or API key not set");
         }
 
-        // 세션 종료
+        // End session
         if (hasSession) {
             canvasDrawing.endOCRSession();
             canvasDrawing.destroySessionCanvas();
@@ -334,16 +334,16 @@ async function handleTextOCR() {
 
 async function handleMathOCR() {
     const hasSession = canvasDrawing.isOCRSessionActive() || canvasDrawing.sessionCanvas;
-    const bounds = hasSession 
-        ? canvasDrawing.getSessionBounds() 
+    const bounds = hasSession
+        ? canvasDrawing.getSessionBounds()
         : canvasDrawing.getAllBounds();
-    
+
     if (!bounds) {
         gestureUI.showWarning("Draw a formula first!");
         return;
     }
 
-    // 세션의 path ID 목록 가져오기
+    // Get session path ID list
     let pathIds = null;
     if (hasSession) {
         pathIds = canvasDrawing.getSessionPathIds();
@@ -376,14 +376,14 @@ async function handleMathOCR() {
         ocrManager.setLastMathExpr(expr);
 
         if (expr && !expr.includes("ERROR")) {
-            // pathIds를 함께 전달
+            // Pass pathIds together
             ocrManager.addResult('math', expr, bounds, pathIds);
             gestureUI.showNotice("Formula recognized!", "#2196F3");
         } else {
             gestureUI.showWarning("No formula recognized");
         }
 
-        // 세션 종료
+        // End session
         if (hasSession) {
             canvasDrawing.endOCRSession();
             canvasDrawing.destroySessionCanvas();
@@ -427,7 +427,7 @@ async function handleDrawGraph() {
     }
 }
 
-// ===== 마우스 이벤트 =====
+// ===== Mouse events =====
 
 canvas.addEventListener("mousemove", (e) => {
     if (overlayUI.isPointerMode() && !handDrawingMode) {
@@ -435,7 +435,7 @@ canvas.addEventListener("mousemove", (e) => {
     }
 });
 
-// ===== 메인 명령 핸들러 =====
+// ===== Main command handler =====
 
 window.electronAPI?.onCmd((data) => {
     console.log("[overlay] received:", data);
@@ -459,12 +459,12 @@ window.electronAPI?.onCmd((data) => {
             break;
 
         case "holdExtended":
-            // Hold 상태 - 제스처 목록 UI 유지 연장
+            // Hold state - extend gesture list UI display
             gestureUI.extendDetecting(data.remaining || 2.5);
             break;
 
         case "stage2Cancelled":
-            // Stage2 취소 (최대 hold 시간 초과)
+            // Stage2 cancelled (max hold duration exceeded)
             gestureUI.cancelDetecting();
             break;
 
@@ -600,7 +600,7 @@ window.electronAPI?.onCmd((data) => {
             calibration.reset();
             break;
 
-        // ===== Calibration 제스처/명령 =====
+        // ===== Calibration gesture/command =====
         case "CALIBRATE":
             if (window.electronAPI && window.electronAPI.sendToHandTracker) {
                 if (calibration.isActive() || calibration.getRegion()) {
@@ -660,8 +660,8 @@ window.electronAPI?.onCmd((data) => {
             break;
 
         case "summaryTest":
-            // M 키: LLM 요약 테스트 - 우측 스택에 표시
-            summaryStack.addSummary(data.text || "테스트 문장입니다.");
+            // M key: LLM summary test - display in right stack
+            summaryStack.addSummary(data.text || "Test sentence.");
             gestureUI.showActionToast("Summary Received", "success", 2000);
             console.log("[Debug] Summary added to stack:", data.text);
             break;

@@ -11,30 +11,30 @@ export class GestureUI {
     }
 
     createElements() {
-        // 동작 알림 토스트 (우측 상단)
+        // Action toast (top right)
         this.actionToast = document.createElement("div");
         this.actionToast.id = "action-toast";
         document.body.appendChild(this.actionToast);
 
-        // 제스처 감지 테두리
+        // Gesture detection border
         this.detectBorder = document.createElement("div");
         this.detectBorder.className = "gesture-detect-active";
         this.detectBorder.style.display = "none";
         document.body.appendChild(this.detectBorder);
 
-        // 제스처 감지 메시지
+        // Gesture detection message
         this.detectMessage = document.createElement("div");
         this.detectMessage.id = "detect-message";
         this.detectMessage.textContent = "Perform gesture now";
         document.body.appendChild(this.detectMessage);
 
-        // 제스처 목록 패널
+        // Gesture list panel
         this.listPanel = document.createElement("div");
         this.listPanel.id = "gesture-list-panel";
         this.buildGestureList();
         document.body.appendChild(this.listPanel);
 
-        // 경고 메시지 (기존 호환성)
+        // Warning message (legacy compatibility)
         this.warningMessage = document.createElement("div");
         this.warningMessage.id = "warning-message";
         this.warningMessage.style.cssText = `
@@ -53,13 +53,13 @@ export class GestureUI {
         `;
         document.body.appendChild(this.warningMessage);
 
-        // 기존 indicator (호환성 유지)
+        // Legacy indicator (compatibility)
         this.indicator = document.createElement("div");
         this.indicator.id = "gesture-indicator";
         this.indicator.style.display = "none";
         document.body.appendChild(this.indicator);
 
-        // 기존 notice (호환성 유지)
+        // Legacy notice (compatibility)
         this.notice = document.createElement("div");
         this.notice.className = "gesture-notification";
         this.notice.style.display = "none";
@@ -67,8 +67,8 @@ export class GestureUI {
     }
 
     buildGestureList() {
-        // 전체 15개 제스처 목록
-        // 이모지 + 영문 동작명 | 실행될 기능
+        // Full 15 gesture list
+        // Emoji + gesture name | action to execute
         const actionList = [
             { gesture: "⬅️ Left", action: "Previous Slide" },
             { gesture: "➡️ Right", action: "Next Slide" },
@@ -101,15 +101,15 @@ export class GestureUI {
         this.listPanel.innerHTML = listHTML;
     }
 
-    // ===== Action Toast (우측 상단 알림) =====
+    // ===== Action Toast (top right notification) =====
 
     showActionToast(message, type = "default", duration = 2000) {
-        // 기존 타임아웃 취소
+        // Cancel existing timeout
         if (this.toastTimeout) {
             clearTimeout(this.toastTimeout);
         }
 
-        // 클래스 초기화
+        // Reset class
         this.actionToast.className = "";
         if (type !== "default") {
             this.actionToast.classList.add(type);
@@ -146,30 +146,30 @@ export class GestureUI {
     }
 
     /**
-     * Hold 상태로 무한 대기
-     * @param {number} remaining - 남은 시간 (초), -1이면 무한 대기
+     * Hold state for indefinite wait
+     * @param {number} remaining - Remaining time (seconds), -1 for infinite wait
      */
     extendDetecting(remaining = -1) {
         if (!this.isDetectingGesture) {
-            // 이미 숨겨진 경우 다시 표시
+            // Show again if already hidden
             this.isDetectingGesture = true;
             this.detectBorder.style.display = "block";
             this.detectMessage.style.display = "block";
             this.listPanel.style.display = "block";
         }
 
-        // 기존 타이머 취소 (무한 대기)
+        // Cancel existing timer (infinite wait)
         if (this.gestureTimeout) {
             clearTimeout(this.gestureTimeout);
             this.gestureTimeout = null;
         }
 
-        // "Hold" 상태 표시 - 타이머 없이
+        // Show "Hold" state - without timer
         this.detectMessage.textContent = "Holding... perform gesture when ready";
     }
 
     /**
-     * Stage2 취소 (최대 hold 시간 초과 등)
+     * Stage2 cancelled (max hold time exceeded, etc.)
      */
     cancelDetecting() {
         this.detectMessage.textContent = "Cancelled";
@@ -190,10 +190,10 @@ export class GestureUI {
         }
     }
 
-    // ===== Legacy Methods (호환성) =====
+    // ===== Legacy Methods (compatibility) =====
 
     showIndicator(text) {
-        // 새로운 토스트 시스템 사용
+        // Use new toast system
         this.showActionToast(text, "default", 1500);
     }
 
@@ -207,7 +207,7 @@ export class GestureUI {
     }
 
     showNotice(text, color = "rgba(0,0,0,0.7)") {
-        // 색상에 따라 type 결정
+        // Determine type based on color
         let type = "default";
         if (color.includes("0,200,0") || color.includes("0,255,0")) {
             type = "success";

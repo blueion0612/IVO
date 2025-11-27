@@ -1,11 +1,11 @@
 // src/renderer/modules/hand-cursor.js
-// Hand Tracking 커서 관리 모듈
+// Hand Tracking cursor management module
 
 export class HandCursor {
     constructor(config) {
         this.config = config;
-        
-        // 상태
+
+        // State
         this.pointerMode = false;
         this.isDrawingEnabled = false;
         this.isEraserMode = false;

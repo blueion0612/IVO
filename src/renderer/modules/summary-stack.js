@@ -23,7 +23,7 @@ export class SummaryStack {
             pointer-events: none;
         `;
 
-        // 스크롤바 스타일 추가
+        // Add scrollbar style
         const style = document.createElement("style");
         style.textContent = `
             #summary-stack-container::-webkit-scrollbar {
@@ -90,7 +90,7 @@ export class SummaryStack {
             animation: summarySlideIn 0.3s ease-out;
         `;
 
-        // 헤더 (시간 + 라벨)
+        // Header (time + label)
         const header = document.createElement("div");
         header.style.cssText = `
             display: flex;
@@ -121,7 +121,7 @@ export class SummaryStack {
         header.appendChild(label);
         header.appendChild(timeLabel);
 
-        // 내용
+        // Content
         const content = document.createElement("div");
         content.textContent = text;
         content.style.cssText = `
@@ -137,7 +137,7 @@ export class SummaryStack {
         resultsList.appendChild(item);
         this.results.push(item);
 
-        // 자동 스크롤 (가장 아래로)
+        // Auto scroll (to bottom)
         setTimeout(() => {
             this.container.scrollTop = this.container.scrollHeight;
         }, 50);
