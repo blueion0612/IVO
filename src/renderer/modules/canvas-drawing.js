@@ -1,37 +1,37 @@
 // src/renderer/modules/canvas-drawing.js
-// 캔버스 드로잉 기능 모듈 - 고유 ID 기반 궤적 관리
+// Canvas drawing module - Unique ID-based stroke management
 
 export class CanvasDrawing {
     constructor(canvas, config) {
         this.canvas = canvas;
         this.ctx = canvas.getContext("2d");
         this.config = config;
-        
-        // 상태
+
+        // State
         this.paths = [];
         this.currentPath = null;
         this.lastPoint = null;
         this.inkBounds = null;
         this.lastMathExpr = null;
-        
-        // 고유 ID 카운터
+
+        // Unique ID counter
         this.pathIdCounter = 0;
-        
-        // OCR 세션 관리
+
+        // OCR session management
         this.ocrSessionActive = false;
-        this.ocrSessionPathIds = [];  // 현재 세션에서 생성된 path ID 목록
-        
-        // OCR 세션 전용 오프스크린 캔버스 (레이어)
+        this.ocrSessionPathIds = [];  // Path IDs created in current session
+
+        // OCR session dedicated offscreen canvas (layer)
         this.sessionCanvas = null;
         this.sessionCtx = null;
-        
-        // 마우스 드로잉 상태
+
+        // Mouse drawing state
         this.isMouseDown = false;
         this.lastX = 0;
         this.lastY = 0;
         this.drawing = false;
-        
-        // 설정
+
+        // Settings
         this.currentColor = config.overlay.default_color;
         this.currentLineWidth = config.overlay.line_width;
         this.isEraserMode = false;
@@ -40,7 +40,7 @@ export class CanvasDrawing {
         this.setupMouseEvents();
     }
 
-    // 고유 ID 생성
+    // Generate unique ID
     generatePathId() {
         return ++this.pathIdCounter;
     }
@@ -60,7 +60,7 @@ export class CanvasDrawing {
         });
     }
 
-    // ===== 세션 캔버스 관리 =====
+    // ===== Session canvas management =====
     
     createSessionCanvas() {
         this.sessionCanvas = document.createElement('canvas');
@@ -125,7 +125,7 @@ export class CanvasDrawing {
         const canvasWidth = this.sessionCanvas.width;
         const canvasHeight = this.sessionCanvas.height;
         
-        // 현재 세션의 path ID에 해당하는 paths만 그리기
+        // Draw only paths matching current session path IDs
         const sessionPaths = this.paths.filter(p => this.ocrSessionPathIds.includes(p.id));
         
         for (const path of sessionPaths) {
@@ -211,7 +211,7 @@ export class CanvasDrawing {
                     isEraser: this.isEraserMode
                 };
                 
-                // 세션 중이면 ID 기록
+                // Record ID if in session
                 if (this.ocrSessionActive) {
                     this.ocrSessionPathIds.push(pathId);
                 }
@@ -268,11 +268,11 @@ export class CanvasDrawing {
         });
     }
 
-    // ===== OCR 세션 관리 =====
+    // ===== OCR session management =====
 
     startOCRSession() {
         this.ocrSessionActive = true;
-        this.ocrSessionPathIds = [];  // 새 세션 시작 시 ID 목록 초기화
+        this.ocrSessionPathIds = [];  // Reset ID list when starting new session
         
         this.createSessionCanvas();
         
@@ -289,12 +289,12 @@ export class CanvasDrawing {
         return this.ocrSessionActive;
     }
     
-    // 현재 세션의 path ID 목록 반환
+    // Return current session path ID list
     getSessionPathIds() {
-        return [...this.ocrSessionPathIds];  // 복사본 반환
+        return [...this.ocrSessionPathIds];  // Return copy
     }
 
-    // 세션 paths의 bounds 계산
+    // Calculate bounds of session paths
     getSessionBounds() {
         const sessionPaths = this.paths.filter(p => this.ocrSessionPathIds.includes(p.id));
         
@@ -332,7 +332,7 @@ export class CanvasDrawing {
         return { xMin: minX, yMin: minY, xMax: maxX, yMax: maxY };
     }
 
-    // ===== ID 기반 궤적 색상 변경 =====
+    // ===== ID-based stroke color change =====
     changePathsColorByIds(pathIds, newColor) {
         if (!pathIds || pathIds.length === 0) return 0;
         
@@ -352,7 +352,7 @@ export class CanvasDrawing {
         return changed;
     }
 
-    // ===== ID 기반 궤적 삭제 =====
+    // ===== ID-based stroke deletion =====
     clearPathsByIds(pathIds) {
         if (!pathIds || pathIds.length === 0) return 0;
         
@@ -368,7 +368,7 @@ export class CanvasDrawing {
         return removedCount;
     }
 
-    // 현재 세션 궤적만 지우기 (세션 중 취소용)
+    // Clear only current session strokes (for session cancellation)
     clearSessionPaths() {
         this.clearPathsByIds(this.ocrSessionPathIds);
         this.ocrSessionPathIds = [];
@@ -383,7 +383,7 @@ export class CanvasDrawing {
         this.destroySessionCanvas();
     }
 
-    // ===== Hand Drawing 관련 =====
+    // ===== Hand Drawing related =====
 
     startNewPath(point) {
         if (!point) return;
@@ -399,7 +399,7 @@ export class CanvasDrawing {
             isAbsolute: false
         };
         
-        // 세션 중이면 ID 기록
+        // Record ID if in session
         if (this.ocrSessionActive && !this.isEraserMode) {
             this.ocrSessionPathIds.push(pathId);
         }
@@ -576,7 +576,7 @@ export class CanvasDrawing {
         return null;
     }
 
-    // ===== 설정 변경 =====
+    // ===== Settings change =====
 
     setColor(color) {
         this.currentColor = color;

@@ -208,26 +208,26 @@ export class OCRManager {
         return btn;
     }
 
-    // ID 기반 궤적 색상 변경
+    // ID-based stroke color change
     changeStrokesColor(resultItem, colorIndex) {
         const colorOption = this.colorOptions[colorIndex];
-        
-        // pathIds로 캔버스 궤적 색상 변경
+
+        // Change canvas stroke color by pathIds
         const pathIdsStr = resultItem.dataset.pathIds;
         if (pathIdsStr && this.onChangeStrokesColor) {
             const pathIds = JSON.parse(pathIdsStr);
             this.onChangeStrokesColor(pathIds, colorOption.color);
             console.log(`[OCR] Strokes color changed to ${colorOption.name}, IDs: [${pathIds.join(',')}]`);
         }
-        
-        // 텍스트 색상도 변경
+
+        // Also change text color
         const contentDiv = resultItem.querySelector('div[style*="word-wrap"]');
         if (contentDiv) {
             contentDiv.style.color = colorOption.color;
         }
     }
 
-    // 결과 추가 (pathIds 포함)
+    // Add result (including pathIds)
     addResult(type, content, originalBounds, pathIds = null) {
         this.container.style.display = "block";
         const resultsList = document.getElementById("ocr-results-list");
@@ -235,12 +235,12 @@ export class OCRManager {
         const resultItem = document.createElement("div");
         resultItem.className = "ocr-result-item";
         resultItem.dataset.type = type;
-        
+
         if (originalBounds) {
             resultItem.dataset.bounds = JSON.stringify(originalBounds);
         }
-        
-        // path ID 목록 저장
+
+        // Save path ID list
         if (pathIds && pathIds.length > 0) {
             resultItem.dataset.pathIds = JSON.stringify(pathIds);
         }
@@ -256,7 +256,7 @@ export class OCRManager {
             transition: all 0.2s ease;
         `;
 
-        // 헤더 행
+        // Header row
         const headerRow = document.createElement("div");
         headerRow.style.cssText = `
             display: flex;
@@ -266,7 +266,7 @@ export class OCRManager {
             padding-right: 30px;
         `;
 
-        // 타입 라벨
+        // Type label
         const typeLabel = document.createElement("div");
         typeLabel.style.cssText = `
             display: inline-block;
@@ -279,7 +279,7 @@ export class OCRManager {
         `;
         typeLabel.textContent = type === 'text' ? 'TEXT' : 'MATH';
 
-        // 색상 버튼 컨테이너
+        // Color button container
         const colorContainer = document.createElement("div");
         colorContainer.style.cssText = `
             display: flex;
@@ -295,7 +295,7 @@ export class OCRManager {
         headerRow.appendChild(typeLabel);
         headerRow.appendChild(colorContainer);
 
-        // 내용
+        // Content
         const contentDiv = document.createElement("div");
         contentDiv.style.cssText = `
             font-size: 14px;
@@ -320,7 +320,7 @@ export class OCRManager {
             contentDiv.textContent = content;
         }
 
-        // 삭제 버튼
+        // Delete button
         const deleteBtn = this.createHoverableButton("×", "delete", 
             "rgba(200, 0, 0, 0.8)",
             `position: absolute;
@@ -340,7 +340,7 @@ export class OCRManager {
         resultItem.appendChild(contentDiv);
         resultItem.appendChild(deleteBtn);
 
-        // 버튼 컨테이너
+        // Button container
         const buttonContainer = document.createElement("div");
         buttonContainer.style.cssText = `
             display: flex;
@@ -407,7 +407,7 @@ export class OCRManager {
         resultsList.appendChild(resultItem);
         this.results.push(resultItem);
 
-        // 애니메이션
+        // Animation
         resultItem.style.opacity = "0";
         resultItem.style.transform = "translateX(50px)";
         setTimeout(() => {
@@ -416,7 +416,7 @@ export class OCRManager {
             resultItem.style.transform = "translateX(0)";
         }, 10);
 
-        // 자동 스크롤 (가장 아래로)
+        // Auto scroll (to bottom)
         setTimeout(() => {
             this.container.scrollTop = this.container.scrollHeight;
         }, 50);
@@ -452,19 +452,19 @@ export class OCRManager {
         resultsList.insertBefore(controlContainer, resultsList.firstChild);
     }
 
-    // ID 기반 궤적 삭제
+    // ID-based stroke deletion
     clearStrokesForResult(resultItem) {
         const pathIdsStr = resultItem.dataset.pathIds;
-        
+
         if (pathIdsStr && this.onClearStrokes) {
             const pathIds = JSON.parse(pathIdsStr);
             this.onClearStrokes(pathIds);
             console.log(`[OCR] Strokes cleared, IDs: [${pathIds.join(',')}]`);
-            
-            // 삭제 후 pathIds 비우기 (중복 삭제 방지)
+
+            // Clear pathIds after deletion (prevent duplicate deletion)
             resultItem.dataset.pathIds = "[]";
-            
-            // Clear Strokes 버튼 비활성화 표시
+
+            // Disable Clear Strokes button
             const clearBtn = resultItem.querySelector('[data-action="clear-strokes"]');
             if (clearBtn) {
                 clearBtn.style.opacity = "0.4";

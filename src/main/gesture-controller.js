@@ -67,21 +67,21 @@ class GestureControllerManager {
     }
 
     /**
-     * 스크립트 경로 찾기 (개발/패키징 환경 모두 지원)
+     * Find script path (supports both dev and packaged environments)
      */
     findScriptPath(basePath) {
         const scriptName = this.config.paths.gesture_controller.replace(/^\.\//, '');
 
-        // 가능한 경로들 (우선순위 순)
+        // Possible paths in priority order
         const possiblePaths = [
-            // 1. 개발 환경: basePath에서 직접 참조
+            // 1. Dev environment: direct reference from basePath
             path.join(basePath, scriptName),
             path.join(basePath, this.config.paths.gesture_controller),
-            // 2. 패키징 환경: extraResources 폴더
+            // 2. Packaged: extraResources folder
             path.join(process.resourcesPath || '', scriptName),
-            // 3. 패키징 환경: app 폴더 옆
+            // 3. Packaged: next to app folder
             path.join(app.getAppPath(), '..', scriptName),
-            // 4. 실행 파일과 같은 폴더
+            // 4. Same folder as executable
             path.join(path.dirname(process.execPath), scriptName),
             path.join(path.dirname(process.execPath), 'resources', scriptName),
         ];
@@ -100,8 +100,8 @@ class GestureControllerManager {
     }
 
     /**
-     * Gesture Controller 시작
-     * @param {string} basePath - 기본 경로
+     * Start Gesture Controller
+     * @param {string} basePath - Base path for script lookup
      */
     start(basePath) {
         if (this.process) {
@@ -125,12 +125,12 @@ class GestureControllerManager {
             return;
         }
 
-        // 환경 변수 설정
+        // Set environment variables
         const env = { ...process.env };
         env.PYTHONIOENCODING = "utf-8";
         env.PYTHONUNBUFFERED = "1";
 
-        // 스크립트가 위치한 디렉토리를 cwd로 사용 (models 폴더 등 상대경로 참조용)
+        // Use script directory as cwd (for relative paths like models folder)
         const scriptDir = path.dirname(scriptPath);
 
         console.log(`[Gesture] Python: ${pythonCmd}`);
@@ -138,7 +138,7 @@ class GestureControllerManager {
         console.log(`[Gesture] Working dir: ${scriptDir}`);
 
         try {
-            // shell: false로 직접 실행 (절대 경로 사용)
+            // Direct execution with absolute paths (shell: false)
             this.process = spawn(pythonCmd, [scriptPath], {
                 cwd: scriptDir,
                 windowsHide: true,
@@ -151,7 +151,7 @@ class GestureControllerManager {
             return;
         }
 
-        // 에러 이벤트 핸들러 추가
+        // Add error event handler
         this.process.on("error", (err) => {
             console.error("[Gesture] Process error:", err.message);
             this.process = null;
@@ -173,7 +173,7 @@ class GestureControllerManager {
             lines.forEach(line => {
                 line = line.trim();
                 if (!line) return;
-                // Python 에러만 출력
+                // Only output Python errors
                 if (line.includes("Traceback") || line.includes("Error")) {
                     console.error("[Gesture stderr]", line);
                 }
@@ -187,7 +187,7 @@ class GestureControllerManager {
     }
 
     /**
-     * Gesture Controller 중지
+     * Stop Gesture Controller
      */
     stop() {
         if (this.process) {
@@ -198,8 +198,8 @@ class GestureControllerManager {
     }
 
     /**
-     * 재시작
-     * @param {string} basePath - 기본 경로
+     * Restart Gesture Controller
+     * @param {string} basePath - Base path for script lookup
      */
     restart(basePath) {
         this.stop();
@@ -209,7 +209,7 @@ class GestureControllerManager {
     }
 
     /**
-     * 실행 중인지 확인
+     * Check if process is running
      */
     isRunning() {
         return this.process !== null;

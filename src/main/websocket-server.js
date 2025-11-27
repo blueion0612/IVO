@@ -42,7 +42,7 @@ class GestureWebSocketServer {
     }
 
     /**
-     * 모든 연결된 클라이언트에게 메시지 브로드캐스트
+     * Broadcast message to all connected clients
      */
     broadcast(message) {
         const msgStr = typeof message === "string" ? message : JSON.stringify(message);
@@ -58,8 +58,8 @@ class GestureWebSocketServer {
     }
 
     /**
-     * 햅틱 피드백 요청 전송 (Python gesture_controller로 전달)
-     * @param {string} preset - 햅틱 프리셋 이름 (예: "slide_change", "selection_tick")
+     * Send haptic feedback request (forwarded to Python gesture_controller)
+     * @param {string} preset - Haptic preset name (e.g., "slide_change", "selection_tick")
      */
     sendHaptic(preset) {
         this.broadcast({
@@ -70,7 +70,7 @@ class GestureWebSocketServer {
     }
 
     /**
-     * 제스처 이름 정규화
+     * Normalize gesture name
      * "90 left" → "90_left"
      * "double tap" → "double_tap"
      * "circle_clockwise" → "circle_cw"
@@ -79,10 +79,10 @@ class GestureWebSocketServer {
     normalizeGestureName(name) {
         if (!name) return name;
 
-        // 먼저 기본 정규화: 소문자 + 공백을 언더스코어로
+        // Basic normalization: lowercase + spaces to underscores
         let normalized = name.toLowerCase().replace(/\s+/g, '_');
 
-        // 모델 출력 이름을 config 이름으로 매핑
+        // Map model output names to config names
         const aliasMap = {
             'circle_clockwise': 'circle_cw',
             'circle_counter_clockwise': 'circle_ccw',
@@ -93,7 +93,7 @@ class GestureWebSocketServer {
     }
 
     /**
-     * 처리 잠금 상태 확인
+     * Check if processing is locked
      */
     isLocked() {
         const now = Date.now();
@@ -104,7 +104,7 @@ class GestureWebSocketServer {
     }
 
     /**
-     * 처리 잠금 설정
+     * Set processing lock
      */
     setLock() {
         this.lastProcessedTime = Date.now();
@@ -124,19 +124,19 @@ class GestureWebSocketServer {
     }
 
     /**
-     * 메시지 처리
-     * @param {string} msg - 수신된 메시지
+     * Handle incoming message
+     * @param {string} msg - Received message
      */
     handleMessage(msg) {
-        // ===== 디버그: 원본 메시지 출력 =====
+        // ===== Debug: Print raw message =====
         console.log(`[WS] Received: ${msg}`);
 
-        // JSON 형태 처리
+        // Handle JSON format
         if (msg.startsWith("{") || msg.startsWith("[")) {
             try {
                 const j = JSON.parse(msg);
 
-                // ===== Stage1 감지 알림 =====
+                // ===== Stage1 detection notification =====
                 if (j.type === "stage1_detected") {
                     console.log(`[WS] Stage1 detected - collecting gesture data...`);
                     if (this.onGestureDetected) {
@@ -145,7 +145,7 @@ class GestureWebSocketServer {
                     return;
                 }
 
-                // ===== Hold 상태 - 제스처 목록 유지 연장 =====
+                // ===== Hold state - extend gesture list display =====
                 if (j.type === "hold_extended") {
                     console.log(`[WS] Hold extended - remaining: ${j.remaining?.toFixed(1)}s`);
                     if (this.onHoldExtended) {
@@ -154,7 +154,7 @@ class GestureWebSocketServer {
                     return;
                 }
 
-                // ===== Stage2 취소 (최대 hold 시간 초과) =====
+                // ===== Stage2 cancelled (max hold duration exceeded) =====
                 if (j.type === "stage2_cancelled") {
                     console.log(`[WS] Stage2 cancelled (max hold duration exceeded)`);
                     if (this.onStage2Cancelled) {
@@ -163,20 +163,20 @@ class GestureWebSocketServer {
                     return;
                 }
 
-                // ===== Stage2 제스처 인식 결과 (이것만 처리!) =====
+                // ===== Stage2 gesture recognition result (primary handler) =====
                 if (j.type === "gesture_recognized") {
-                    // 제스처 이름 정규화 ("90 left" → "90_left")
+                    // Normalize gesture name ("90 left" → "90_left")
                     const rawGestureName = j.gesture;
                     const gestureName = this.normalizeGestureName(rawGestureName);
                     const confidence = j.confidence || 0;
-                    
+
                     console.log(`[WS] ★ Gesture: "${rawGestureName}" → normalized: "${gestureName}" (${(confidence * 100).toFixed(1)}%)`);
-                    
+
                     if (this.onGestureRecognized) {
                         this.onGestureRecognized(gestureName, confidence);
                     }
 
-                    // 제스처 이름을 명령으로 매핑
+                    // Map gesture name to command
                     const command = this.config.gesture_to_command[gestureName];
                     if (command) {
                         if (!this.shouldDebounce(command)) {
@@ -190,23 +190,23 @@ class GestureWebSocketServer {
                     } else {
                         console.log(`[WS] → WARNING: No mapping for "${gestureName}"`);
                     }
-                    
-                    // 매핑 성공 여부와 관계없이 항상 잠금! (후속 code 메시지 방지)
+
+                    // Always lock regardless of mapping success (prevent subsequent code messages)
                     this.setLock();
                     return;
                 }
 
-                // ===== 다른 메시지는 잠금 상태면 무시 =====
+                // ===== Ignore other messages if locked =====
                 if (this.isLocked()) {
                     console.log(`[WS] Ignored (locked): ${msg.substring(0, 50)}...`);
                     return;
                 }
 
-                // ===== 일반 code 처리 (잠금 해제 상태에서만) =====
+                // ===== Handle general code (only when unlocked) =====
                 if (j.code !== undefined) {
                     const codeStr = String(j.code);
                     console.log(`[WS] Code: ${codeStr}`);
-                    
+
                     if (this.onCode && !this.shouldDebounce(codeStr)) {
                         this.onCode(codeStr, j);
                     }
@@ -218,13 +218,13 @@ class GestureWebSocketServer {
             }
         }
 
-        // 잠금 상태면 무시
+        // Ignore if locked
         if (this.isLocked()) {
             console.log(`[WS] Ignored (locked): ${msg}`);
             return;
         }
 
-        // 단일 코드 처리
+        // Handle single code
         if (this.onCode && !this.shouldDebounce(msg)) {
             console.log(`[WS] Raw command: ${msg}`);
             this.onCode(msg);
@@ -232,42 +232,42 @@ class GestureWebSocketServer {
     }
 
     /**
-     * 제스처 감지 콜백 설정
+     * Set gesture detection callback
      */
     setGestureDetectedCallback(callback) {
         this.onGestureDetected = callback;
     }
 
     /**
-     * 제스처 인식 콜백 설정
+     * Set gesture recognition callback
      */
     setGestureRecognizedCallback(callback) {
         this.onGestureRecognized = callback;
     }
 
     /**
-     * Hold 연장 콜백 설정
+     * Set hold extended callback
      */
     setHoldExtendedCallback(callback) {
         this.onHoldExtended = callback;
     }
 
     /**
-     * Stage2 취소 콜백 설정
+     * Set Stage2 cancelled callback
      */
     setStage2CancelledCallback(callback) {
         this.onStage2Cancelled = callback;
     }
 
     /**
-     * 코드 처리 콜백 설정
+     * Set code handler callback
      */
     setCodeCallback(callback) {
         this.onCode = callback;
     }
 
     /**
-     * 서버 중지
+     * Stop server
      */
     stop() {
         if (this.wss) {

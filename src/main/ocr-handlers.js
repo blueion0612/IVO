@@ -55,21 +55,21 @@ function findPythonPath() {
 }
 
 /**
- * 스크립트 경로 찾기 (개발/패키징 환경 모두 지원)
+ * Find script path (supports both dev and packaged environments)
  */
 function findScriptPath(basePath, configPath) {
     const scriptName = configPath.replace(/^\.\//, '');
 
-    // 가능한 경로들 (우선순위 순)
+    // Possible paths in priority order
     const possiblePaths = [
-        // 1. 개발 환경: basePath에서 직접 참조
+        // 1. Dev environment: direct reference from basePath
         path.join(basePath, scriptName),
         path.join(basePath, configPath),
-        // 2. 패키징 환경: extraResources 폴더
+        // 2. Packaged: extraResources folder
         path.join(process.resourcesPath || '', scriptName),
-        // 3. 패키징 환경: app 폴더 옆
+        // 3. Packaged: next to app folder
         path.join(app.getAppPath(), '..', scriptName),
-        // 4. 실행 파일과 같은 폴더
+        // 4. Same folder as executable
         path.join(path.dirname(process.execPath), scriptName),
         path.join(path.dirname(process.execPath), 'resources', scriptName),
     ];
@@ -85,11 +85,11 @@ function findScriptPath(basePath, configPath) {
 }
 
 /**
- * Python 스크립트 실행
- * @param {string} scriptPath - 스크립트 경로
- * @param {string[]} args - 인자 배열
- * @param {string} cwd - 작업 디렉토리
- * @returns {Promise<string>} stdout 결과
+ * Execute Python script
+ * @param {string} scriptPath - Script path
+ * @param {string[]} args - Argument array
+ * @param {string} cwd - Working directory
+ * @returns {Promise<string>} stdout result
  */
 function runPython(scriptPath, args, cwd) {
     return new Promise((resolve, reject) => {
@@ -142,14 +142,14 @@ function runPython(scriptPath, args, cwd) {
 }
 
 /**
- * OCR 핸들러 설정
+ * Setup OCR handlers
  * @param {Electron.IpcMain} ipcMain
  * @param {BrowserWindow} win
  * @param {string} basePath
  * @param {Object} config
  */
 function setupOCRHandlers(ipcMain, getWindow, basePath, config) {
-    // ===== 기존 OCR 핸들러 (화면 캡처 방식) =====
+    // ===== Legacy OCR handler (screen capture method) =====
     ipcMain.handle("do-ocr", async (event, { mode, bbox }) => {
         const win = getWindow();
         if (!win) throw new Error("overlay window not ready");
@@ -203,7 +203,7 @@ function setupOCRHandlers(ipcMain, getWindow, basePath, config) {
         } catch (err) {
             console.error("[OCR] Canvas capture error:", err);
 
-            // Fallback: 전체 페이지 캡처
+            // Fallback: Full page capture
             const image = await win.capturePage(bbox);
             const tempDir = app.getPath("temp");
             const filePath = path.join(tempDir, `ink_ocr_fallback_${Date.now()}.png`);
@@ -218,27 +218,27 @@ function setupOCRHandlers(ipcMain, getWindow, basePath, config) {
         }
     });
 
-    // ===== 새로운 OCR 핸들러 (세션 캔버스 DataURL 직접 전송) =====
+    // ===== New OCR handler (direct session canvas DataURL transfer) =====
     ipcMain.handle("do-ocr-with-image", async (event, { mode, dataURL }) => {
         console.log(`[OCR] Request with session image, mode=${mode}`);
         
         try {
-            // DataURL에서 base64 데이터 추출
+            // Extract base64 data from DataURL
             const base64Data = dataURL.replace(/^data:image\/png;base64,/, '');
             
-            // 임시 파일로 저장
+            // Save to temporary file
             const tempDir = app.getPath("temp");
             const filePath = path.join(tempDir, `ocr_session_${Date.now()}.png`);
             fs.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
-            
+
             console.log(`[OCR] Session image saved to: ${filePath}`);
 
-            // Python OCR 스크립트 실행
+            // Execute Python OCR script
             const scriptPath = findScriptPath(basePath, config.paths.ocr_script);
             if (!scriptPath) throw new Error("OCR script not found");
             const resultText = await runPython(scriptPath, [mode, filePath], basePath);
             
-            // 임시 파일 삭제
+            // Delete temporary file
             try {
                 fs.unlinkSync(filePath);
                 console.log(`[OCR] Temp file deleted: ${filePath}`);
@@ -254,7 +254,7 @@ function setupOCRHandlers(ipcMain, getWindow, basePath, config) {
         }
     });
 
-    // ===== 계산 핸들러 =====
+    // ===== Calculation handler =====
     ipcMain.handle("do-calc", async (event, { expr }) => {
         const scriptPath = findScriptPath(basePath, config.paths.calc_script);
         if (!scriptPath) throw new Error("Calc script not found");
@@ -262,7 +262,7 @@ function setupOCRHandlers(ipcMain, getWindow, basePath, config) {
         return { result };
     });
 
-    // ===== 그래프 핸들러 =====
+    // ===== Graph handler =====
     ipcMain.handle("do-graph", async (event, { expr }) => {
         const win = getWindow();
         if (!win) throw new Error("overlay window not ready");
@@ -293,7 +293,7 @@ function setupOCRHandlers(ipcMain, getWindow, basePath, config) {
         }
     });
 
-    // ===== File to base64 변환 핸들러 =====
+    // ===== File to base64 conversion handler =====
     ipcMain.handle("file-to-base64", async (event, { filePath }) => {
         try {
             if (!fs.existsSync(filePath)) {

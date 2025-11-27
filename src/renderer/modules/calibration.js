@@ -1,5 +1,5 @@
 // src/renderer/modules/calibration.js
-// 캘리브레이션 관리 모듈
+// Calibration management module
 
 export class CalibrationManager {
     constructor() {

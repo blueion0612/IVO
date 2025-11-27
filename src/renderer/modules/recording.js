@@ -1,12 +1,12 @@
 // src/renderer/modules/recording.js
-// 자막 녹음 관리 모듈
+// Caption recording management module
 
 export class RecordingManager {
     constructor(config, captionElement, showWarning) {
         this.config = config;
         this.captionElement = captionElement;
         this.showWarning = showWarning;
-        this.onSummaryReceived = null;  // 콜백: summary 텍스트를 외부로 전달
+        this.onSummaryReceived = null;  // Callback: pass summary text to external handler
 
         this.mediaRecorder = null;
         this.recordedChunks = [];
@@ -41,7 +41,7 @@ export class RecordingManager {
         this.indicator.innerHTML = 'REC';
         document.body.appendChild(this.indicator);
         
-        // 애니메이션 스타일 추가
+        // Add animation style
         const style = document.createElement("style");
         style.textContent = `
             @keyframes recording-pulse {
@@ -124,7 +124,7 @@ export class RecordingManager {
             const data = await res.json();
             const summary = data.summary || data.text || "No summary";
 
-            // 콜백이 있으면 스택에 추가
+            // Add to stack if callback exists
             if (this.onSummaryReceived) {
                 this.onSummaryReceived(summary);
             }
