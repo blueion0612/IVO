@@ -1,16 +1,22 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 IMU Streaming Test Application
-- Real-time IMU acceleration and gyroscope visualization for watch and phone
-- Haptic feedback demo with UDP command sending
-- Auto-detects phone IP from incoming UDP packets
+
+Real-time visualization of IMU data from smartwatch and phone with haptic feedback demo.
+Auto-detects phone IP from incoming UDP packets.
+
+Features:
+- Live accelerometer and gyroscope plots for both watch and phone
+- Adjustable haptic feedback controls (intensity, count, duration)
+- Automatic phone IP detection from UDP packets
+- Packet rate monitoring
 
 Requirements:
     pip install matplotlib numpy
 
 Usage:
     python imu_test.py
-
-Author: Claude Code
 """
 
 import socket
@@ -23,7 +29,11 @@ import matplotlib.animation as animation
 from matplotlib.widgets import Button, Slider
 import numpy as np
 
+
+# =============================================================================
 # Configuration
+# =============================================================================
+
 IMU_PORT = 65000          # Port for receiving IMU data
 HAPTIC_PORT = 65010       # Port for sending haptic commands
 
@@ -36,8 +46,12 @@ MSG_SIZE = 30 * 4  # 120 bytes
 BUFFER_SIZE = 200
 
 
+# =============================================================================
+# IMU Data Receiver
+# =============================================================================
+
 class IMUDataReceiver:
-    """Receives IMU data via UDP and auto-detects phone IP"""
+    """Receives IMU data via UDP and auto-detects phone IP."""
 
     def __init__(self, port=IMU_PORT):
         self.port = port
@@ -87,11 +101,11 @@ class IMUDataReceiver:
             self.phone_gyro_z.append(0)
 
     def set_phone_ip_callback(self, callback):
-        """Set callback to be called when phone IP is detected"""
+        """Set callback to be called when phone IP is detected."""
         self.phone_ip_callback = callback
 
     def start(self):
-        """Start receiving IMU data"""
+        """Start receiving IMU data."""
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.bind(('0.0.0.0', self.port))
@@ -103,7 +117,7 @@ class IMUDataReceiver:
         print(f"IMU receiver started on port {self.port}")
 
     def stop(self):
-        """Stop receiving IMU data"""
+        """Stop receiving IMU data."""
         self.running = False
         if self.thread:
             self.thread.join(timeout=1.0)
@@ -112,7 +126,7 @@ class IMUDataReceiver:
         print("IMU receiver stopped")
 
     def _receive_loop(self):
-        """Main receive loop"""
+        """Main receive loop."""
         rate_calc_time = time.time()
         rate_calc_count = 0
 
@@ -146,7 +160,7 @@ class IMUDataReceiver:
                     print(f"Receive error: {e}")
 
     def _parse_data(self, data):
-        """Parse received IMU data"""
+        """Parse received IMU data."""
         # Unpack 30 floats (big-endian, Java default)
         values = struct.unpack('>30f', data[:MSG_SIZE])
 
@@ -169,8 +183,12 @@ class IMUDataReceiver:
         self.phone_gyro_z.append(values[25])
 
 
+# =============================================================================
+# Haptic Controller
+# =============================================================================
+
 class HapticController:
-    """Sends haptic commands via UDP"""
+    """Sends haptic commands via UDP."""
 
     def __init__(self, port=HAPTIC_PORT):
         self.phone_ip = None
@@ -179,13 +197,13 @@ class HapticController:
         self.haptic_count = 0
 
     def set_phone_ip(self, ip):
-        """Set phone IP address"""
+        """Set phone IP address."""
         self.phone_ip = ip
         print(f"Haptic controller target IP set to: {ip}")
 
     def send_haptic(self, intensity=200, count=1, duration=100):
         """
-        Send haptic command to phone
+        Send haptic command to phone.
 
         Args:
             intensity: Vibration intensity (0-255)
@@ -201,17 +219,22 @@ class HapticController:
         try:
             self.socket.sendto(data, (self.phone_ip, self.port))
             self.haptic_count += 1
-            print(f"Haptic sent to {self.phone_ip}: intensity={intensity}, count={count}, duration={duration}ms")
+            print(f"Haptic sent to {self.phone_ip}: intensity={intensity}, "
+                  f"count={count}, duration={duration}ms")
         except Exception as e:
             print(f"Failed to send haptic: {e}")
 
     def close(self):
-        """Close socket"""
+        """Close socket."""
         self.socket.close()
 
 
+# =============================================================================
+# IMU Visualizer
+# =============================================================================
+
 class IMUVisualizer:
-    """Real-time visualization of IMU data with auto-scaling"""
+    """Real-time visualization of IMU data with haptic controls."""
 
     def __init__(self):
         self.receiver = IMUDataReceiver()
@@ -329,14 +352,14 @@ class IMUVisualizer:
         self.ani = None
 
     def _on_haptic_click(self, event):
-        """Handle haptic button click"""
+        """Handle haptic button click."""
         intensity = int(self.slider_intensity.val)
         count = int(self.slider_count.val)
         duration = int(self.slider_duration.val)
         self.haptic.send_haptic(intensity, count, duration)
 
     def _update_plot(self, frame):
-        """Update plot data with auto-scaling"""
+        """Update plot data."""
         # Get data as lists
         watch_acc_x = list(self.receiver.watch_lacc_x)
         watch_acc_y = list(self.receiver.watch_lacc_y)
@@ -377,7 +400,10 @@ class IMUVisualizer:
 
         # Update status text
         phone_status = self.receiver.phone_ip if self.receiver.phone_ip else "waiting..."
-        status = f"Packets: {self.receiver.packet_count:,}  |  Rate: {self.receiver.packet_rate:.1f} Hz  |  Phone: {phone_status}  |  Haptics: {self.haptic.haptic_count}"
+        status = (f"Packets: {self.receiver.packet_count:,}  |  "
+                  f"Rate: {self.receiver.packet_rate:.1f} Hz  |  "
+                  f"Phone: {phone_status}  |  "
+                  f"Haptics: {self.haptic.haptic_count}")
         self.status_text.set_text(status)
 
         # Return all artists that need to be redrawn
@@ -387,7 +413,7 @@ class IMUVisualizer:
         return artists
 
     def run(self):
-        """Start visualization"""
+        """Start visualization."""
         print("=" * 50)
         print("IMU Streaming Test Application")
         print("=" * 50)
@@ -406,7 +432,7 @@ class IMUVisualizer:
         # Start receiver
         self.receiver.start()
 
-        # Start animation (blit=False to avoid the axes issue)
+        # Start animation
         self.ani = animation.FuncAnimation(
             self.fig, self._update_plot, interval=50, blit=False, cache_frame_data=False
         )
@@ -420,7 +446,7 @@ class IMUVisualizer:
 
 
 def main():
-    """Main entry point"""
+    """Main entry point."""
     visualizer = IMUVisualizer()
     visualizer.run()
 
