@@ -26,6 +26,8 @@
 - **IMU Gesture Recognition**: Control presentations using smartwatch gestures (15 unique gestures)
 - **Hand Tracking Mode**: Draw and point on screen using webcam-based hand detection
 - **Real-time OCR**: Handwriting-to-text conversion with calculation and graph generation
+- **Speech-to-Text (STT)**: Local Whisper-based transcription with CUDA acceleration
+- **Q&A Summarization**: KoBART-based Korean text summarization for Q&A sessions
 - **Presentation Timer**: Built-in timer for time management
 - **Haptic Feedback**: Vibration feedback on smartwatch for gesture confirmation
 - **Cross-Platform**: Supports Windows and macOS
@@ -105,8 +107,14 @@ cd ivo
 # Install Node.js dependencies
 npm install
 
-# Install Python dependencies
-pip install -r requirements.txt
+# Install Python dependencies (Core)
+pip install torch mediapipe opencv-python numpy sympy matplotlib pillow requests websockets
+
+# Install Python dependencies (STT - requires CUDA)
+pip install faster-whisper sounddevice
+
+# Install Python dependencies (Summarization)
+pip install transformers
 ```
 
 ### Step 3: Download Model Weights
@@ -184,10 +192,13 @@ Control PowerPoint, Keynote, or any presentation software using wrist gestures d
 - **Calculator**: Evaluate mathematical expressions
 - **Graph Plotter**: Generate function graphs
 
-### 4. Caption & Summary
+### 4. Speech-to-Text & Summarization
 
-- Real-time speech-to-text captions
-- LLM-powered content summarization
+- **Local STT**: Whisper large-v3 via faster-whisper with CUDA acceleration
+- **Multi-language**: Korean/English auto-detection
+- **Conversation Stack**: Speaker-tagged transcription display
+- **Q&A Summarization**: KoBART-based bullet-point summary generation
+- **Hand Pointer Integration**: Hover-dwell speaker selection
 
 ### 5. Presentation Timer
 
@@ -387,6 +398,8 @@ ivo/
 │   │   ├── main.js              # Application entry point
 │   │   ├── gesture-controller.js # IMU gesture Python manager
 │   │   ├── hand-tracking.js     # Hand tracking Python manager
+│   │   ├── stt-manager.js       # STT subprocess manager
+│   │   ├── summarizer-manager.js # QA summarizer subprocess manager
 │   │   ├── websocket-server.js  # WebSocket for gesture data
 │   │   ├── ocr-handlers.js      # OCR/calc/graph IPC handlers
 │   │   ├── ppt-controller.js    # PPT/Keynote slide control
@@ -401,23 +414,39 @@ ivo/
 │       ├── overlay.js           # Main overlay logic
 │       ├── styles/              # CSS styles
 │       └── modules/             # UI modules
-│           ├── gesture-ui.js    # Gesture feedback UI
-│           ├── hand-cursor.js   # Hand cursor rendering
-│           ├── calibration.js   # Calibration UI
-│           ├── control-panel.js # Control panel
-│           ├── canvas-drawing.js # Drawing canvas
-│           ├── ocr-manager.js   # OCR results manager
-│           └── summary-stack.js # LLM summary display
+│           ├── gesture-ui.js        # Gesture feedback UI
+│           ├── hand-cursor.js       # Hand cursor rendering
+│           ├── calibration.js       # Calibration UI
+│           ├── control-panel.js     # Control panel
+│           ├── canvas-drawing.js    # Drawing canvas
+│           ├── ocr-manager.js       # OCR results manager
+│           ├── conversation-stack.js # STT conversation display
+│           └── summary-stack.js     # Summary display
 │
-├── gesture_controller.py        # IMU gesture recognition
-├── hand_tracker.py              # Hand tracking with MediaPipe
+├── py/                          # Python modules
+│   ├── gesture/                 # IMU gesture recognition
+│   │   └── gesture_controller.py
+│   ├── vision/                  # Computer vision
+│   │   └── hand_tracker.py      # MediaPipe hand tracking
+│   ├── stt/                     # Speech-to-Text
+│   │   ├── stt_server.py        # Whisper STT server
+│   │   ├── qa_summarizer.py     # KoBART summarization module
+│   │   └── qa_summarizer_server.py
+│   ├── ocr/                     # OCR & Math
+│   │   ├── InkOCR.py            # Core OCR engine
+│   │   ├── ink_ocr_cli.py       # OCR CLI wrapper
+│   │   ├── calc_cli.py          # Calculator CLI
+│   │   ├── math_cli.py          # Math operation CLI
+│   │   └── graph_cli.py         # Graph plotting CLI
+│   └── test/                    # Test scripts
+│       ├── imu_test.py          # IMU data test
+│       └── realtime_stt.py      # STT console test
+│
 ├── models/                      # Neural network weights
+│   ├── stage1_best.pt           # Gesture entry detection
+│   └── stage2_best.pt           # Gesture classification
 ├── config/
 │   └── config.json              # Application configuration
-├── py/                          # Python utilities
-│   ├── ink_ocr_cli.py          # OCR script
-│   ├── calc_cli.py             # Calculator script
-│   └── graph_cli.py            # Graph plotting script
 ├── image/                       # App assets
 └── package.json                 # npm configuration
 ```

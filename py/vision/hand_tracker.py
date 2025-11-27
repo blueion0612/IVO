@@ -273,6 +273,70 @@ def is_draw_gesture_norm(lm, distance_threshold=0.04):
     return is_thumb_touch_middle_pip_norm(lm, distance_threshold=distance_threshold)
 
 
+class DoubleTapDetector:
+    """
+    Detect double-tap gesture (thumb touching middle PIP twice quickly).
+
+    Used for calibration point marking.
+    """
+    def __init__(self, tap_timeout=0.4, min_gap=0.1):
+        """
+        Args:
+            tap_timeout: Maximum time between taps (seconds)
+            min_gap: Minimum time between tap release and next tap (seconds)
+        """
+        self.tap_timeout = tap_timeout
+        self.min_gap = min_gap
+        self.last_tap_time = 0
+        self.tap_count = 0
+        self.was_touching = False
+        self.last_release_time = 0
+
+    def update(self, is_touching):
+        """
+        Update detector state and check for double-tap.
+
+        Args:
+            is_touching: Whether thumb is currently touching middle PIP
+
+        Returns:
+            True if double-tap detected
+        """
+        current_time = time.time()
+        double_tap_detected = False
+
+        # Detect rising edge (not touching -> touching)
+        if is_touching and not self.was_touching:
+            # Check if this is a valid tap (not too soon after last release)
+            if current_time - self.last_release_time >= self.min_gap:
+                # Check if within timeout of last tap
+                if current_time - self.last_tap_time <= self.tap_timeout:
+                    self.tap_count += 1
+                else:
+                    self.tap_count = 1
+
+                self.last_tap_time = current_time
+
+                # Double tap detected
+                if self.tap_count >= 2:
+                    double_tap_detected = True
+                    self.tap_count = 0
+
+        # Detect falling edge (touching -> not touching)
+        if not is_touching and self.was_touching:
+            self.last_release_time = current_time
+
+        self.was_touching = is_touching
+        return double_tap_detected
+
+    def reset(self):
+        """Reset detector state."""
+        self.tap_count = 0
+        self.last_tap_time = 0
+        self.last_release_time = 0
+        self.was_touching = False
+
+
 def main():
     """Main entry point for hand tracking."""
     ensure_model()
@@ -341,9 +405,11 @@ def main():
     calibrating = False
     calibration_points = []
     calibration_region = None
-    prev_pinky_ext = False
     last_calibration_time = 0
-    CALIBRATION_COOLDOWN = 0.5
+    CALIBRATION_COOLDOWN = 0.3
+
+    # Double-tap detector for calibration
+    calibration_tap_detector = DoubleTapDetector(tap_timeout=0.4, min_gap=0.1)
 
     ts_ms = 0
     frame_count = 0
@@ -369,8 +435,11 @@ def main():
                             send_message({"type": "draw_disable"})
                             was_drawing = False
 
+                        # Reset double-tap detector for fresh calibration
+                        calibration_tap_detector.reset()
+
                         send_message({"type": "calibration_started"})
-                        send_message({"type": "status", "message": "Calibration started - mark 4 corners"})
+                        send_message({"type": "status", "message": "Calibration started - double-tap to mark 4 corners"})
 
                     elif command == "reset_calibration":
                         calibration_region = None
@@ -378,6 +447,16 @@ def main():
                         calibrating = False
                         send_message({"type": "calibration_reset"})
                         send_message({"type": "status", "message": "Calibration reset"})
+
+                    elif command == "set_calibration":
+                        # Restore calibration region from saved state (sent by Electron)
+                        region = cmd.get("region")
+                        if region and isinstance(region, dict):
+                            calibration_region = region
+                            calibration_points = []  # Clear any partial points
+                            calibrating = False
+                            send_message({"type": "calibration_restored", "region": region})
+                            send_message({"type": "status", "message": "Calibration restored"})
 
                 except queue.Empty:
                     break
@@ -437,8 +516,7 @@ def main():
                 last_cursor = cursor_pos
 
                 if calibrating:
-                    # Calibration mode: pinky up->down = add point
-                    pinky_ext = is_pinky_extended_reliable(lm_px)
+                    # Calibration mode: double-tap (thumb touch middle PIP twice) = add point
                     current_time = time.time()
 
                     # Force drawing off during calibration
@@ -450,8 +528,12 @@ def main():
                         send_message({"type": "draw_disable"})
                         was_drawing = False
 
-                    if prev_pinky_ext and not pinky_ext and cursor_pos is not None:
-                        # Falling edge with cooldown
+                    # Detect thumb-middle touch for double-tap
+                    is_touching = is_thumb_touch_middle_pip_norm(landmarks, distance_threshold=0.04)
+                    double_tap = calibration_tap_detector.update(is_touching)
+
+                    if double_tap and cursor_pos is not None:
+                        # Double-tap detected with cooldown
                         if current_time - last_calibration_time > CALIBRATION_COOLDOWN:
                             calibration_points.append(cursor_pos.copy())
                             last_calibration_time = current_time
@@ -469,6 +551,7 @@ def main():
                                     target_aspect=actual_width / actual_height
                                 )
                                 calibrating = False
+                                calibration_tap_detector.reset()
 
                                 if calibration_region:
                                     send_message({
@@ -485,8 +568,6 @@ def main():
                                         "message": "Calibration area too small"
                                     })
                                     calibration_points = []
-
-                    prev_pinky_ext = pinky_ext
 
                 else:
                     # Normal mode: detect draw gesture
@@ -542,6 +623,9 @@ def main():
                 draw_on_count = 0
                 draw_off_count = 0
 
+                # Reset double-tap detector when hand is lost
+                calibration_tap_detector.reset()
+
                 send_message({
                     "type": "cursor",
                     "position": None,
@@ -551,7 +635,6 @@ def main():
                 })
 
                 last_cursor = None
-                prev_pinky_ext = False
 
     except KeyboardInterrupt:
         pass
