@@ -97,8 +97,8 @@ This architecture minimizes false positives while maintaining responsiveness.
 ### Step 1: Clone Repository
 
 ```bash
-git clone https://github.com/yourusername/ivo.git
-cd ivo
+git clone https://github.com/blueion0612/IVO.git
+cd IVO
 ```
 
 ### Step 2: Install Dependencies
@@ -157,19 +157,19 @@ IVO recognizes 15 distinct gestures:
 |---------|------|--------|-------------|
 | **Left Swipe** | ⬅️ | Previous Slide | Navigate to previous slide |
 | **Right Swipe** | ➡️ | Next Slide | Navigate to next slide |
-| **Up Swipe** | ⬆️ | Overlay ON | Activate overlay display |
-| **Down Swipe** | ⬇️ | Overlay OFF | Hide overlay display |
-| **Circle CW** | 🔄 | Start Recording | Begin caption recording |
-| **Circle CCW** | 🔄 | Stop Recording | Stop and summarize |
+| **Up Swipe** | ⬆️ | Pointer Mode | Activate laser pointer overlay |
+| **Down Swipe** | ⬇️ | STT Recording | Toggle speech-to-text recording |
+| **Circle CW** | 🔃 | Start STT Session | Initialize STT and start recording |
+| **Circle CCW** | 🔄 | Summarize & Exit | Generate Q&A summary and exit STT |
 | **Double Left** | ⏪ | Jump -3 Slides | Skip back 3 slides |
 | **Double Right** | ⏩ | Jump +3 Slides | Skip forward 3 slides |
-| **X Motion** | ❌ | Reset All | Disable all features |
-| **Double Tap** | 👆👆 | Hand Drawing | Toggle hand tracking mode |
-| **90° Left** | ↩️ | OCR Start | Begin OCR session |
-| **90° Right** | ↪️ | Toggle Draw/Pointer | Switch between modes |
+| **X Motion** | ❌ | Reset All | Disable all features and reset state |
+| **Double Tap** | 👆👆 | Hand Drawing | Toggle hand tracking drawing mode |
+| **90° Left** | ↩️ | OCR Start | Begin OCR session for handwriting |
+| **90° Right** | ↪️ | Toggle Draw/Pointer | Switch between drawing and pointer modes |
 | **Figure 8** | ♾️ | Timer Toggle | Start/stop presentation timer |
-| **Square** | ⬜ | Calibrate | Calibrate hand tracking |
-| **Triangle** | 🔺 | Blackout | Toggle screen blackout |
+| **Square** | ⬜ | Calibrate | 4-corner hand tracking calibration |
+| **Triangle** | 🔺 | Blackout | Toggle screen blackout mode |
 
 ---
 
@@ -179,30 +179,65 @@ IVO recognizes 15 distinct gestures:
 
 Control PowerPoint, Keynote, or any presentation software using wrist gestures detected by your smartwatch's IMU sensors.
 
+- **15 Unique Gestures**: Comprehensive gesture set for full presentation control
+- **Two-Stage Recognition**: Stage 1 detects gesture start, Stage 2 classifies gesture type
+- **Haptic Feedback**: Real-time vibration feedback on smartwatch for gesture confirmation
+- **Low Latency**: ~2.5 seconds for gesture recognition with high accuracy
+
 ### 2. Hand Tracking Overlay
 
-- **Pointer Mode**: Use your index finger as a laser pointer
-- **Drawing Mode**: Draw annotations on screen with pinch gesture
-- **Calibration**: 4-corner calibration for accurate tracking
+- **Pointer Mode**: Use your index finger as a laser pointer with visual cursor
+- **Drawing Mode**: Draw annotations on screen using pinch gesture (thumb + index finger)
+- **Double-Tap Calibration**: Use double-tap gesture to trigger 4-corner screen calibration
+- **Calibration Persistence**: Calibration data persists across hand tracking restarts
+- **Color Palette**: 6 colors (Red, Yellow, Green, Blue, Purple, Black) with hover-dwell selection
+- **Line Width**: 4 thickness options (2px, 4px, 8px, 12px)
+- **Control Panel**: On-screen tool panel accessible via hand pointer hover-dwell
 
 ### 3. OCR & Calculation
 
-- **Text OCR**: Convert handwritten text to digital text
-- **Math OCR**: Recognize mathematical expressions
-- **Calculator**: Evaluate mathematical expressions
-- **Graph Plotter**: Generate function graphs
+- **Text OCR**: Convert handwritten text to digital text using Google Vision API
+- **Math OCR**: Recognize LaTeX mathematical expressions using SimpleTex API
+- **Calculator**: Evaluate mathematical expressions with SymPy
+- **Graph Plotter**: Generate function graphs with Matplotlib
+- **OCR Session**: Draw → OCR → Result display workflow with undo support
 
-### 4. Speech-to-Text & Summarization
+### 4. Speech-to-Text (STT) & Q&A Summarization
 
-- **Local STT**: Whisper large-v3 via faster-whisper with CUDA acceleration
-- **Multi-language**: Korean/English auto-detection
-- **Conversation Stack**: Speaker-tagged transcription display
-- **Q&A Summarization**: KoBART-based bullet-point summary generation
-- **Hand Pointer Integration**: Hover-dwell speaker selection
+**Local STT Engine:**
+- **Whisper large-v3**: Local speech recognition via faster-whisper
+- **CUDA Acceleration**: GPU-accelerated transcription for low latency
+- **Multi-language**: Automatic Korean/English language detection
+- **VAD Filtering**: Voice Activity Detection to filter silence
+
+**Conversation Stack UI:**
+- **Speaker Tags**: Presenter, Q1, Q2, Q3 speaker identification
+- **Hand Pointer Selection**: Hover-dwell on speaker buttons to change speaker
+- **Real-time Display**: Transcriptions appear immediately with speaker attribution
+- **Scrollable History**: Full conversation history with auto-scroll
+
+**Q&A Summarization:**
+- **KoBART Model**: Korean BART model for abstractive summarization
+- **Q/A Pair Extraction**: Automatically groups questions with presenter answers
+- **Bullet-point Format**: Clean, readable summary output
+- **Fallback Mode**: Rule-based summarization when model unavailable
+
+**STT Workflow:**
+1. **Circle CW** → Initialize STT session (loads Whisper model)
+2. **Down Swipe** → Start/stop recording (toggle)
+3. Use hand pointer to select speaker for each transcription
+4. **Circle CCW** → Generate summary and exit STT mode
 
 ### 5. Presentation Timer
 
-Built-in timer with visual display for time management during presentations.
+- **Visual Display**: Large, readable timer overlay
+- **Figure 8 Toggle**: Start/stop timer with figure-8 gesture
+- **Elapsed Time**: Shows presentation duration in MM:SS format
+
+### 6. Blackout Mode
+
+- **Triangle Gesture**: Toggle full-screen black overlay
+- **Presentation Pause**: Temporarily hide screen content during Q&A or breaks
 
 ---
 
@@ -338,25 +373,25 @@ Customize gesture-to-command mappings in the `gesture_to_command` section.
 |-----|---------|--------|
 | F1 | Left | Previous Slide |
 | F2 | Right | Next Slide |
-| F3 | Up | Overlay ON |
-| F4 | Down | Overlay OFF |
-| F5 | Circle CW | Start Recording |
-| F6 | Circle CCW | Stop Recording |
+| F3 | Up | Pointer Mode ON |
+| F4 | Down | STT Recording Toggle |
+| F5 | Circle CW | Start STT Session |
+| F6 | Circle CCW | Summarize & Exit STT |
 | F7 | Double Left | Jump -3 Slides |
 | F8 | Double Right | Jump +3 Slides |
 | F9 | X | Reset All |
-| F10 | Double Tap | Hand Drawing |
+| F10 | Double Tap | Hand Drawing Mode |
 | F11 | Figure 8 | Timer Toggle |
-| F12 | Triangle | Blackout |
+| F12 | Triangle | Blackout Toggle |
 
 ### Special Keys
 
 | Key | Action |
 |-----|--------|
-| M | Test LLM Summary |
 | H | Start Hand Tracking |
-| C | Calibrate Hand Tracking |
-| P | Toggle Pointer Mode |
+| C | Calibrate Hand Tracking (clears saved calibration) |
+| P | Toggle Pointer/Drawing Mode |
+| M | Test Summary Generation |
 | Escape | Quit Application |
 | Ctrl+Q | Quit Application |
 | Ctrl+Shift+1 | Gesture Detect UI Test |
@@ -532,6 +567,6 @@ Made by **LYH**
 
 <div align="center">
 
-**[Report Bug](https://github.com/yourusername/ivo/issues) · [Request Feature](https://github.com/yourusername/ivo/issues)**
+**[Report Bug](https://github.com/blueion0612/IVO/issues) · [Request Feature](https://github.com/blueion0612/IVO/issues)**
 
 </div>
