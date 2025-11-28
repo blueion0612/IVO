@@ -573,6 +573,15 @@ ipcMain.handle("stt-is-ready", async (event) => {
     return sttManager.isMicReady();
 });
 
+// Haptic feedback from renderer
+ipcMain.handle("send-haptic", async (event, preset) => {
+    if (wsServer) {
+        wsServer.sendHaptic(preset);
+        return true;
+    }
+    return false;
+});
+
 ipcMain.handle("stt-request-summary", async (event, conversations) => {
     try {
         // Use local KoBART summarizer

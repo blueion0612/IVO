@@ -36,17 +36,27 @@ export class CalibrationManager {
     addPoint(position) {
         this.points.push(position);
         this.showPoints();
+
+        // Send haptic feedback for each calibration point
+        if (window.electronAPI && window.electronAPI.sendHaptic) {
+            window.electronAPI.sendHaptic("calibration_point");
+        }
     }
 
     complete(region) {
         this.isCalibrating = false;
         this.region = region;
         this.showPoints();
-        
+
+        // Send strong haptic feedback on calibration complete
+        if (window.electronAPI && window.electronAPI.sendHaptic) {
+            window.electronAPI.sendHaptic("calibration_done");
+        }
+
         setTimeout(() => {
             this.overlay.style.display = "none";
         }, 2000);
-        
+
         console.log("[Calibration] Complete");
     }
 

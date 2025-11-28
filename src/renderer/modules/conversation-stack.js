@@ -736,6 +736,11 @@ export class ConversationStack {
             // Remove progress bar
             progress.remove();
 
+            // Send strong haptic feedback on selection
+            if (window.electronAPI && window.electronAPI.sendHaptic) {
+                window.electronAPI.sendHaptic("selection_tick");
+            }
+
             // Trigger click action
             element.click();
 
@@ -795,6 +800,11 @@ export class ConversationStack {
         }
 
         this.currentHoverElement = element;
+
+        // Send weak haptic feedback when hover starts
+        if (window.electronAPI && window.electronAPI.sendHaptic) {
+            window.electronAPI.sendHaptic("hover_tick");
+        }
     }
 
     clearHoverStates() {
