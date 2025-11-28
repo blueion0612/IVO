@@ -537,7 +537,8 @@ class Stage1LSTMModel(nn.Module):
     def __init__(self, input_shape):
         super().__init__()
         T, D = input_shape
-        self.lstm = nn.LSTM(
+        # Use 'rnn' as variable name to match checkpoint keys
+        self.rnn = nn.LSTM(
             input_size=D,
             hidden_size=64,
             num_layers=1,
@@ -552,7 +553,7 @@ class Stage1LSTMModel(nn.Module):
         )
 
     def forward(self, x):
-        _, (h_n, _) = self.lstm(x)
+        _, (h_n, _) = self.rnn(x)
         h = h_n[-1]
         return self.fc(h).squeeze(1)
 

@@ -14,6 +14,11 @@ const SummarizerManager = require("./summarizer-manager");
 const { pptPrev, pptNext, jumpSlides } = require("./ppt-controller");
 const { setupOCRHandlers } = require("./ocr-handlers");
 
+// Disable GPU hardware acceleration to prevent GPU process crashes
+app.disableHardwareAcceleration();
+app.commandLine.appendSwitch('disable-gpu');
+app.commandLine.appendSwitch('disable-software-rasterizer');
+
 const configPath = path.join(__dirname, "../../config/config.json");
 const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
 const basePath = path.join(__dirname, "../..");
@@ -458,17 +463,26 @@ function handleCode(code, payload = {}) {
             // Clear saved calibration when user explicitly requests new calibration
             handTracking.clearSavedCalibration();
 
+            // Activate hand pointer mode along with calibration
+            activeFeature = "handDraw";
+
             // Start hand tracking if not running, then calibrate
             if (!handTracking.isRunning()) {
                 handTracking.start(basePath);
                 // Wait a bit for hand tracking to initialize
                 setTimeout(() => {
+                    win.webContents.send("cmd", { type: "toggleHandDraw" });
+                    win.webContents.send("cmd", { type: "setPointerMode", enabled: true });
                     win.webContents.send("cmd", { type: "CALIBRATE" });
+                    setClickThrough(true);
                     showOverlayMessage("📐 Calibration Started");
                     wsServer.sendHaptic("calibration_point");
                 }, 1000);
             } else {
+                win.webContents.send("cmd", { type: "toggleHandDraw" });
+                win.webContents.send("cmd", { type: "setPointerMode", enabled: true });
                 win.webContents.send("cmd", { type: "CALIBRATE" });
+                setClickThrough(true);
                 showOverlayMessage("📐 Calibration");
                 wsServer.sendHaptic("calibration_point");
             }

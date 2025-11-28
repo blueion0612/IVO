@@ -79,10 +79,12 @@
 
 IVO uses a two-stage neural network approach for robust gesture recognition:
 
-1. **Stage 1 - Entry Detection**: Detects when a gesture motion begins
-2. **Stage 2 - Gesture Classification**: Classifies the specific gesture type
+1. **Stage 1 - Entry Detection**: LSTM-based model that detects when a gesture motion begins
+2. **Stage 2 - Gesture Classification**: TCN (Temporal Convolutional Network) that classifies the specific gesture type
 
 This architecture minimizes false positives while maintaining responsiveness.
+
+> 📚 **Training Framework**: The gesture recognition models were developed using our custom [IMU Gesture Classifier](https://github.com/blueion0612/IMU_Gesture_Classifier) framework, which supports various architectures (MLP, LSTM, GRU, TCN) for IMU-based gesture recognition.
 
 ---
 
@@ -120,9 +122,11 @@ pip install transformers
 
 ### Step 3: Download Model Weights
 
-Place the trained model files in the `models/` directory:
+Download the pre-trained gesture recognition models from the [Google Drive](https://drive.google.com/drive/folders/1eac_bqIQ1vY2Z1D-OqNQRVsJi-RC-cR-?usp=drive_link) and place them in the `models/` directory:
 - `stage1_best.pt` - Entry detection model
 - `stage2_best.pt` - Gesture classification model
+
+> **Note**: These models were trained using the [IMU Gesture Classifier](https://github.com/blueion0612/IMU_Gesture_Classifier) framework. The Google Drive also contains the original IMU gesture dataset if you want to train custom models.
 
 ---
 
@@ -563,6 +567,17 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 MJU Capstone Project 2025
 
 Made by **LYH**
+
+### Related Repositories
+
+| Repository | Description |
+|------------|-------------|
+| [IMU Streaming App](https://github.com/blueion0612/IMU_Stream_APP_MJU) | WearOS/Android app for streaming IMU sensor data |
+| [IMU Gesture Classifier](https://github.com/blueion0612/IMU_Gesture_Classifier) | Training framework for gesture recognition models |
+
+### Resources
+
+- [Pre-trained Models & Dataset (Google Drive)](https://drive.google.com/drive/folders/1eac_bqIQ1vY2Z1D-OqNQRVsJi-RC-cR-?usp=drive_link)
 
 ---
 
