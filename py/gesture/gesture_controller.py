@@ -97,8 +97,10 @@ HAPTIC_PRESETS = {
     "mode_drawing": {"intensity": 180, "count": 1, "duration": 120},
     # Pointer mode entry: light single vibration
     "mode_pointer": {"intensity": 120, "count": 1, "duration": 80},
-    # Color/palette selection: very short tick
-    "selection_tick": {"intensity": 80, "count": 1, "duration": 50},
+    # Hover start: very light tick for UI feedback
+    "hover_tick": {"intensity": 50, "count": 1, "duration": 30},
+    # Color/palette selection: short tick
+    "selection_tick": {"intensity": 100, "count": 1, "duration": 60},
     # Slide change: medium single vibration
     "slide_change": {"intensity": 150, "count": 1, "duration": 80},
     # Calibration point recorded: short feedback

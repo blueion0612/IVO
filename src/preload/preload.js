@@ -34,4 +34,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     sttIsRecording: () => ipcRenderer.invoke("stt-is-recording"),
     sttIsReady: () => ipcRenderer.invoke("stt-is-ready"),
     sttRequestSummary: (conversations) => ipcRenderer.invoke("stt-request-summary", conversations),
+
+    // Haptic feedback API
+    sendHaptic: (preset) => ipcRenderer.invoke("send-haptic", preset),
 });

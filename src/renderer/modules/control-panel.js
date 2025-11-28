@@ -152,6 +152,7 @@ export class ControlPanel {
                 if (this.hoveredElement !== currentHovered) {
                     this.hoveredElement = currentHovered;
                     this.hoverStartTime = Date.now();
+                    this.hoverHapticSent = false;  // Reset haptic flag for new element
                 }
 
                 const elapsed = Date.now() - this.hoverStartTime;
@@ -161,7 +162,20 @@ export class ControlPanel {
                 item.style.transform = "scale(1.12)";
                 item.style.borderColor = "rgba(255, 255, 255, 0.9)";
 
+                // Send weak haptic feedback when hover starts (only once per element)
+                if (!this.hoverHapticSent && elapsed > 50) {
+                    this.hoverHapticSent = true;
+                    if (window.electronAPI && window.electronAPI.sendHaptic) {
+                        window.electronAPI.sendHaptic("hover_tick");
+                    }
+                }
+
                 if (elapsed >= this.hoverDuration) {
+                    // Send strong haptic feedback on selection
+                    if (window.electronAPI && window.electronAPI.sendHaptic) {
+                        window.electronAPI.sendHaptic("selection_tick");
+                    }
+
                     // Execute action
                     if (item.dataset.type === "color") {
                         if (this.onAction) {
@@ -180,6 +194,7 @@ export class ControlPanel {
                     }
 
                     this.hoverStartTime = Date.now();
+                    this.hoverHapticSent = false;  // Reset for next selection cycle
                     progress.style.width = "0%";
                 }
             } else {
@@ -192,6 +207,7 @@ export class ControlPanel {
         if (!isHovering) {
             this.hoveredElement = null;
             this.hoverStartTime = null;
+            this.hoverHapticSent = false;
         }
     }
 
