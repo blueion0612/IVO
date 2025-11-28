@@ -130,16 +130,42 @@ class GestureControllerManager {
         env.PYTHONIOENCODING = "utf-8";
         env.PYTHONUNBUFFERED = "1";
 
-        // Use script directory as cwd (for relative paths like models folder)
+        // Use script directory as cwd
         const scriptDir = path.dirname(scriptPath);
+
+        // Find models directory (in project root or resources)
+        const modelsPaths = [
+            path.join(basePath, 'models'),
+            path.join(process.resourcesPath || '', 'models'),
+            path.join(app.getAppPath(), '..', 'models'),
+        ];
+
+        let modelsDir = null;
+        for (const p of modelsPaths) {
+            if (fs.existsSync(p)) {
+                modelsDir = p;
+                break;
+            }
+        }
+
+        const stage1Path = modelsDir ? path.join(modelsDir, 'stage1_best.pt') : './models/stage1_best.pt';
+        const stage2Path = modelsDir ? path.join(modelsDir, 'stage2_best.pt') : './models/stage2_best.pt';
 
         console.log(`[Gesture] Python: ${pythonCmd}`);
         console.log(`[Gesture] Script: ${scriptPath}`);
         console.log(`[Gesture] Working dir: ${scriptDir}`);
+        console.log(`[Gesture] Models dir: ${modelsDir}`);
+
+        // Build command line arguments with model paths
+        const args = [
+            scriptPath,
+            '--stage1_ckpt', stage1Path,
+            '--stage2_ckpt', stage2Path
+        ];
 
         try {
             // Direct execution with absolute paths (shell: false)
-            this.process = spawn(pythonCmd, [scriptPath], {
+            this.process = spawn(pythonCmd, args, {
                 cwd: scriptDir,
                 windowsHide: true,
                 env: env,

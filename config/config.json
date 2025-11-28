@@ -4,7 +4,7 @@
     "version": "3.0.0"
   },
   "imu": {
-    "udp_ip": "1.229.37.23",
+    "udp_ip": "10.17.169.240",
     "udp_port": 65000,
     "stage1_checkpoint": "./models/stage1_best.pt",
     "stage2_checkpoint": "./models/stage2_best.pt",
