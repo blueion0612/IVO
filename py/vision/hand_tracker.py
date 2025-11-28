@@ -138,8 +138,13 @@ def smooth_point(prev, new, alpha=0.25):
     }
 
 
-def compute_calibration_region(points, target_aspect=1.333):
-    """Compute calibration region from 4 corner points with aspect ratio preservation."""
+def compute_calibration_region(points, target_aspect=None):
+    """
+    Compute calibration region as the minimum bounding rectangle of 4 points.
+
+    Simply uses the min/max of the 4 calibration points to create a bounding box.
+    No aspect ratio adjustment - direct linear mapping from camera space to screen.
+    """
     if len(points) != 4:
         return None
 
@@ -149,38 +154,18 @@ def compute_calibration_region(points, target_aspect=1.333):
     min_x, max_x = min(xs), max(xs)
     min_y, max_y = min(ys), max(ys)
 
-    raw_width = max_x - min_x
-    raw_height = max_y - min_y
+    width = max_x - min_x
+    height = max_y - min_y
 
-    if raw_width < 0.01 or raw_height < 0.01:
+    # Minimum size check
+    if width < 0.01 or height < 0.01:
         return None
-
-    cx = (min_x + max_x) / 2.0
-    cy = (min_y + max_y) / 2.0
-
-    current_aspect = raw_width / raw_height if raw_height > 0 else target_aspect
-
-    width = raw_width
-    height = raw_height
-
-    if current_aspect > target_aspect:
-        height = width / target_aspect
-    else:
-        width = height * target_aspect
-
-    half_w = width / 2.0
-    half_h = height / 2.0
-
-    min_x = max(0.0, cx - half_w)
-    max_x = min(1.0, cx + half_w)
-    min_y = max(0.0, cy - half_h)
-    max_y = min(1.0, cy + half_h)
 
     return {
         "min_x": min_x,
         "min_y": min_y,
-        "width": max_x - min_x,
-        "height": max_y - min_y
+        "width": width,
+        "height": height
     }
 
 
@@ -547,8 +532,7 @@ def main():
 
                             if len(calibration_points) == 4:
                                 calibration_region = compute_calibration_region(
-                                    calibration_points,
-                                    target_aspect=actual_width / actual_height
+                                    calibration_points
                                 )
                                 calibrating = False
                                 calibration_tap_detector.reset()
