@@ -671,10 +671,13 @@ function registerDebugShortcuts() {
 
     globalShortcut.register("M", () => {
         if (win && win.webContents) {
+            // Send test transcription to STT conversation stack
             win.webContents.send("cmd", {
-                type: "summaryTest",
-                text: "This is a test summary message."
+                type: "sttTranscription",
+                text: "테스트입니다",
+                speaker: currentSpeaker
             });
+            console.log("[Test] Sent test STT transcription");
         }
     });
 
