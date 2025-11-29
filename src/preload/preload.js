@@ -37,4 +37,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
     // Haptic feedback API
     sendHaptic: (preset) => ipcRenderer.invoke("send-haptic", preset),
+
+    // Vocabulary dictionary API
+    vocabLookup: (word) => ipcRenderer.invoke("vocab-lookup", word),
 });

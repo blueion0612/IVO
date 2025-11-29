@@ -14,6 +14,7 @@ import { RecordingManager } from './modules/recording.js';
 import { OverlayUI } from './modules/overlay-ui.js';
 import { SummaryStack } from './modules/summary-stack.js';
 import { ConversationStack } from './modules/conversation-stack.js';
+import { StickyNoteManager } from './modules/sticky-note-manager.js';
 
 // Load configuration
 const config = {
@@ -32,7 +33,7 @@ const config = {
         "up": "Pointer Mode",
         "down": "Record Toggle",
         "circle_cw": "Recording Mode",
-        "circle_ccw": "Exit Recording",
+        "circle_ccw": "Sticky Note",
         "double_tap": "Hand Drawing",
         "x": "Reset All",
         "square": "Calibration",
@@ -49,7 +50,7 @@ const config = {
         { icon: "⬆️", name: "Up", desc: "Pointer Mode" },
         { icon: "⬇️", name: "Down", desc: "Record Toggle" },
         { icon: "🔃", name: "Circle CW", desc: "Recording Mode" },
-        { icon: "🔄", name: "Circle CCW", desc: "Exit Recording" },
+        { icon: "🔄", name: "Circle CCW", desc: "Sticky Note" },
         { icon: "⏪", name: "Double Left", desc: "Jump -3 slides" },
         { icon: "⏩", name: "Double Right", desc: "Jump +3 slides" },
         { icon: "❌", name: "X", desc: "Reset All" },
@@ -108,6 +109,10 @@ const ocrManager = new OCRManager(overlayRoot, (msg) => gestureUI.showWarning(ms
 const recording = new RecordingManager(config, caption, (msg) => gestureUI.showWarning(msg));
 const summaryStack = new SummaryStack();
 const conversationStack = new ConversationStack();
+const stickyNoteManager = new StickyNoteManager(config);
+
+// Sticky Note mode state
+let stickyNoteMode = false;
 
 // ===== OCR Manager callback setup (ID-based) =====
 
@@ -131,6 +136,32 @@ ocrManager.setOnChangeStrokesColor((pathIds, newColor) => {
 recording.setOnSummaryReceived((summary) => {
     summaryStack.addSummary(summary);
     gestureUI.showActionToast("Summary Received", "success", 2000);
+});
+
+// ===== Sticky Note Manager callback setup =====
+stickyNoteManager.setOnStartRecording(() => {
+    if (window.electronAPI && window.electronAPI.sttStartRecording) {
+        window.electronAPI.sttStartRecording();
+    }
+});
+
+stickyNoteManager.setOnStopRecording(() => {
+    if (window.electronAPI && window.electronAPI.sttStopRecording) {
+        window.electronAPI.sttStopRecording();
+    }
+});
+
+stickyNoteManager.setOnHapticFeedback((preset) => {
+    if (window.electronAPI && window.electronAPI.sendHaptic) {
+        window.electronAPI.sendHaptic(preset);
+    }
+});
+
+stickyNoteManager.setOnVocabLookup(async (word) => {
+    if (window.electronAPI && window.electronAPI.vocabLookup) {
+        return await window.electronAPI.vocabLookup(word);
+    }
+    return { error: "Vocab API not available" };
 });
 
 // ===== OCR session status indicator UI =====
@@ -480,6 +511,7 @@ window.electronAPI?.onCmd((data) => {
             activeMode = null;
             handDrawingMode = false;
             handPointerMode = false;
+            stickyNoteMode = false;
 
             canvasDrawing.setDrawingMode(false);
             canvasDrawing.clear();
@@ -501,6 +533,10 @@ window.electronAPI?.onCmd((data) => {
             summaryStack.clearAll();
             conversationStack.exitRecordingMode();
             conversationStack.hide();
+
+            // Reset sticky note mode
+            stickyNoteManager.deactivate();
+            stickyNoteManager.clearAll();
 
             console.log("[Control] All reset");
             break;
@@ -557,12 +593,39 @@ window.electronAPI?.onCmd((data) => {
             break;
 
         case "handCursor":
-            // Allow hand cursor in both drawing mode and pointer-only mode
-            if (!handDrawingMode && !handPointerMode) return;
+            // Allow hand cursor in drawing mode, pointer-only mode, or sticky note mode
+            if (!handDrawingMode && !handPointerMode && !stickyNoteMode) return;
 
             const screenPos = handCursor.updatePosition(data.position);
 
             if (data.calibrating) {
+                return;
+            }
+
+            // Sticky Note mode - handle hover and drag
+            if (stickyNoteMode) {
+                if (screenPos) {
+                    // Check hover on sticky note elements (add button, notes, etc.)
+                    const hoverResult = stickyNoteManager.checkHover(screenPos.x, screenPos.y);
+
+                    // Handle pinch (drawing) gesture for dragging notes
+                    if (hoverResult && hoverResult.type === "note") {
+                        if (data.drawing && !stickyNoteManager.isDragging) {
+                            // Start drag on pinch
+                            stickyNoteManager.startHandDrag(hoverResult.noteId, screenPos.x, screenPos.y);
+                        }
+                    }
+
+                    // Update drag position if dragging
+                    if (stickyNoteManager.isDragging) {
+                        if (data.drawing) {
+                            stickyNoteManager.updateHandDrag(screenPos.x, screenPos.y);
+                        } else {
+                            // Release on unpinch
+                            stickyNoteManager.endHandDrag();
+                        }
+                    }
+                }
                 return;
             }
 
@@ -798,6 +861,35 @@ window.electronAPI?.onCmd((data) => {
         case "sttError":
             gestureUI.showWarning(`STT Error: ${data.message}`);
             console.error("[STT] Error:", data.message);
+            break;
+
+        // ===== Sticky Note Mode Events =====
+        case "stickyNoteModeEnter":
+            stickyNoteMode = true;
+            stickyNoteManager.activate();
+            handCursor.show();
+            handCursor.setPointerMode(true);
+            gestureUI.showNotice("📝 Sticky Note Mode ON", "#FF9800");
+            console.log("[StickyNote] Mode entered");
+            break;
+
+        case "stickyNoteModeExit":
+            stickyNoteMode = false;
+            stickyNoteManager.deactivate();
+            handCursor.hide();
+            gestureUI.showNotice("📝 Sticky Note Mode OFF", "#607D8B");
+            console.log("[StickyNote] Mode exited");
+            break;
+
+        case "stickyNoteTranscription":
+            // Add transcription as sticky note
+            if (data.text && data.text.trim()) {
+                stickyNoteManager.addNote(data.text);
+                gestureUI.showActionToast("Note Created", "success", 1500);
+                console.log(`[StickyNote] Created note: ${data.text}`);
+            } else {
+                gestureUI.showWarning("No speech detected");
+            }
             break;
     }
 });

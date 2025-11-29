@@ -23,11 +23,13 @@
   "devDependencies": {
     "electron": "^27.0.0",
     "electron-builder": "^24.13.3",
-    "electron-reload": "^2.0.0-alpha.1"
+    "electron-reload": "^2.0.0-alpha.1",
+    "rcedit": "^5.0.2"
   },
   "build": {
     "appId": "com.mju.ivo",
     "productName": "IVO",
+    "icon": "image/icon.ico",
     "directories": {
       "output": "dist"
     },
@@ -64,17 +66,24 @@
           ]
         }
       ],
+      "icon": "image/icon.ico",
       "signAndEditExecutable": false
     },
+    "afterPack": "./scripts/afterPack.js",
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
+      "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
-      "shortcutName": "IVO"
+      "shortcutName": "IVO",
+      "installerIcon": "image/icon.ico",
+      "uninstallerIcon": "image/icon.ico",
+      "installerHeaderIcon": "image/icon.ico"
     },
     "mac": {
-      "target": ["dmg"],
+      "target": [
+        "dmg"
+      ],
       "category": "public.app-category.productivity"
     }
   }

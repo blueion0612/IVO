@@ -28,8 +28,11 @@
 - **Real-time OCR**: Handwriting-to-text conversion with calculation and graph generation
 - **Speech-to-Text (STT)**: Local Whisper-based transcription with CUDA acceleration
 - **Q&A Summarization**: KoBART-based Korean text summarization for Q&A sessions
+- **Sticky Note Mode**: Voice-to-text sticky notes with dictionary lookup (Korean/English)
+- **Vocabulary Dictionary**: Korean (국립국어원 API) and English (Free Dictionary API) word definitions
 - **Presentation Timer**: Built-in timer for time management
 - **Haptic Feedback**: Vibration feedback on smartwatch for gesture confirmation
+- **Device Selection**: Camera and microphone selection by device name for consistent setup
 - **Cross-Platform**: Supports Windows and macOS
 
 ---
@@ -128,6 +131,19 @@ Download the pre-trained gesture recognition models from the [Google Drive](http
 
 > **Note**: These models were trained using the [IMU Gesture Classifier](https://github.com/blueion0612/IMU_Gesture_Classifier) framework. The Google Drive also contains the original IMU gesture dataset if you want to train custom models.
 
+### Step 4: Configure API Keys (Optional)
+
+For Korean dictionary lookup in Sticky Note mode, create a `.env` file in the project root:
+
+```bash
+# .env
+KOREAN_DICT_API_KEY=your_api_key_here
+```
+
+Get your free API key from [국립국어원 Open API](https://opendict.korean.go.kr/service/openApiInfo).
+
+> **Note**: English dictionary lookup works without any API key using the free [Free Dictionary API](https://dictionaryapi.dev/).
+
 ---
 
 ## Quick Start
@@ -164,8 +180,8 @@ IVO recognizes 15 distinct gestures:
 | **Right Swipe** | ➡️ | Next Slide | Navigate to next slide |
 | **Up Swipe** | ⬆️ | Pointer Mode | Activate laser pointer overlay |
 | **Down Swipe** | ⬇️ | STT Recording | Toggle speech-to-text recording |
-| **Circle CW** | 🔃 | Start STT Session | Initialize STT and start recording |
-| **Circle CCW** | 🔄 | Summarize & Exit | Generate Q&A summary and exit STT |
+| **Circle CW** | 🔃 | Recording Mode | Start STT recording session |
+| **Circle CCW** | 🔄 | Sticky Note Mode | Toggle sticky note mode with voice input |
 | **Double Left** | ⏪ | Jump -3 Slides | Skip back 3 slides |
 | **Double Right** | ⏩ | Jump +3 Slides | Skip forward 3 slides |
 | **X Motion** | ❌ | Reset All | Disable all features and reset state |
@@ -233,16 +249,51 @@ Control PowerPoint, Keynote, or any presentation software using wrist gestures d
 3. Use hand pointer to select speaker for each transcription
 4. **Circle CCW** → Generate summary and exit STT mode
 
-### 5. Presentation Timer
+### 5. Sticky Note Mode
+
+Voice-to-text sticky notes with integrated dictionary lookup:
+
+- **Voice Recording**: Press + button or use hand pointer hover-dwell to record
+- **STT Integration**: Automatic transcription using Whisper large-v3
+- **Dictionary Lookup**: Built-in Korean/English dictionary for word definitions
+- **Draggable Notes**: Drag notes anywhere on screen with mouse or hand pointer
+- **Hand Tracking Support**: Full hover-dwell interaction with hand pointer
+
+**Dictionary Features:**
+- **Korean Dictionary**: 국립국어원 Open API (requires API key in `.env`)
+- **English Dictionary**: Free Dictionary API (no key required)
+- **Auto Language Detection**: Automatically detects Korean or English input
+- **Korean Particle Removal**: Intelligently strips particles (은/는/이/가/을/를) for better lookup
+- **Multi-word Support**: Looks up each word in a sentence with page navigation
+- **Punctuation Handling**: Automatically removes punctuation from words
+
+**Sticky Note Workflow:**
+1. **Circle CCW** → Enter sticky note mode
+2. Press **+** button (hover-dwell) → Start recording
+3. Speak → Press **+** again → Creates note with transcription
+4. Press **📖** button → View dictionary definitions
+5. Use **◀ ▶** buttons to navigate between words
+6. **Circle CCW** again → Exit sticky note mode
+
+### 6. Presentation Timer
 
 - **Visual Display**: Large, readable timer overlay
 - **Figure 8 Toggle**: Start/stop timer with figure-8 gesture
 - **Elapsed Time**: Shows presentation duration in MM:SS format
 
-### 6. Blackout Mode
+### 7. Blackout Mode
 
 - **Triangle Gesture**: Toggle full-screen black overlay
 - **Presentation Pause**: Temporarily hide screen content during Q&A or breaks
+
+### 8. Device Selection
+
+The launcher allows selection of specific camera and microphone devices by name:
+
+- **Camera Selection**: Choose webcam by device name for consistent hand tracking
+- **Microphone Selection**: Choose microphone by device name for STT
+- **Name-based Matching**: Devices are matched by name, not index (handles USB port changes)
+- **Persistent Settings**: Selected devices are remembered across sessions
 
 ---
 
@@ -380,8 +431,8 @@ Customize gesture-to-command mappings in the `gesture_to_command` section.
 | F2 | Right | Next Slide |
 | F3 | Up | Pointer Mode ON |
 | F4 | Down | STT Recording Toggle |
-| F5 | Circle CW | Start STT Session |
-| F6 | Circle CCW | Summarize & Exit STT |
+| F5 | Circle CW | Recording Mode |
+| F6 | Circle CCW | Sticky Note Mode |
 | F7 | Double Left | Jump -3 Slides |
 | F8 | Double Right | Jump +3 Slides |
 | F9 | X | Reset All |
@@ -440,6 +491,7 @@ ivo/
 │   │   ├── hand-tracking.js     # Hand tracking Python manager
 │   │   ├── stt-manager.js       # STT subprocess manager
 │   │   ├── summarizer-manager.js # QA summarizer subprocess manager
+│   │   ├── vocab-manager.js     # Vocabulary dictionary subprocess manager
 │   │   ├── websocket-server.js  # WebSocket for gesture data
 │   │   ├── ocr-handlers.js      # OCR/calc/graph IPC handlers
 │   │   ├── ppt-controller.js    # PPT/Keynote slide control
@@ -461,7 +513,8 @@ ivo/
 │           ├── canvas-drawing.js    # Drawing canvas
 │           ├── ocr-manager.js       # OCR results manager
 │           ├── conversation-stack.js # STT conversation display
-│           └── summary-stack.js     # Summary display
+│           ├── summary-stack.js     # Summary display
+│           └── sticky-note-manager.js # Sticky note mode with dictionary
 │
 ├── py/                          # Python modules
 │   ├── gesture/                 # IMU gesture recognition
@@ -472,6 +525,8 @@ ivo/
 │   │   ├── stt_server.py        # Whisper STT server
 │   │   ├── qa_summarizer.py     # KoBART summarization module
 │   │   └── qa_summarizer_server.py
+│   ├── vocab/                   # Vocabulary dictionary
+│   │   └── vocab_server.py      # Korean/English dictionary server
 │   ├── ocr/                     # OCR & Math
 │   │   ├── InkOCR.py            # Core OCR engine
 │   │   ├── ink_ocr_cli.py       # OCR CLI wrapper
@@ -504,6 +559,8 @@ opencv-python>=4.8.0
 numpy>=1.24.0
 sympy>=1.12
 matplotlib>=3.7.0
+requests>=2.28.0
+pygrabber>=0.2
 ```
 
 ### Node.js Dependencies

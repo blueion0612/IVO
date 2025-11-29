@@ -4,7 +4,7 @@
     "version": "3.0.0"
   },
   "imu": {
-    "udp_ip": "10.17.169.240",
+    "udp_ip": "192.168.219.104",
     "udp_port": 65000,
     "stage1_checkpoint": "./models/stage1_best.pt",
     "stage2_checkpoint": "./models/stage2_best.pt",
@@ -231,7 +231,7 @@
     "up": "Pointer Mode",
     "down": "Record Toggle",
     "circle_cw": "Recording Mode",
-    "circle_ccw": "Exit Recording",
+    "circle_ccw": "Sticky Note",
     "double_tap": "Hand Drawing",
     "x": "Reset All",
     "square": "Calibration",
@@ -271,7 +271,7 @@
     {
       "icon": "🔄",
       "name": "Circle CCW",
-      "desc": "Exit Recording"
+      "desc": "Sticky Note"
     },
     {
       "icon": "⏪",
@@ -369,7 +369,7 @@
       },
       "F6": {
         "code": "8",
-        "name": "Exit Recording",
+        "name": "Sticky Note",
         "gesture": "circle_ccw"
       },
       "F7": {

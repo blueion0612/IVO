@@ -322,8 +322,109 @@ class DoubleTapDetector:
         self.was_touching = False
 
 
+def parse_args():
+    """Parse command line arguments."""
+    import argparse
+    parser = argparse.ArgumentParser(description="Hand Tracking for IVO")
+    parser.add_argument('--camera', type=int, default=0,
+                        help='Camera device index (default: 0)')
+    parser.add_argument('--camera-name', type=str, default='',
+                        help='Camera device name for matching (overrides --camera)')
+    return parser.parse_args()
+
+
+def enumerate_cameras(max_cameras=10):
+    """
+    Enumerate available cameras and their names (Windows only).
+
+    On Windows, uses DirectShow to get camera names.
+    Returns list of (index, name) tuples.
+    """
+    cameras = []
+
+    if os.name == 'nt':
+        # Try to get camera names using Windows API
+        try:
+            from pygrabber.dshow_graph import FilterGraph
+            graph = FilterGraph()
+            devices = graph.get_input_devices()
+            for idx, name in enumerate(devices):
+                cameras.append((idx, name))
+            return cameras
+        except ImportError:
+            pass
+
+        # Fallback: try cv2 with DirectShow and just check which indices work
+        for idx in range(max_cameras):
+            cap = cv2.VideoCapture(idx, cv2.CAP_DSHOW)
+            if cap.isOpened():
+                # Try to get backend name
+                backend = cap.getBackendName()
+                cameras.append((idx, f"Camera {idx} ({backend})"))
+                cap.release()
+    else:
+        # Linux/Mac: just check which indices work
+        for idx in range(max_cameras):
+            cap = cv2.VideoCapture(idx)
+            if cap.isOpened():
+                cameras.append((idx, f"Camera {idx}"))
+                cap.release()
+
+    return cameras
+
+
+def find_camera_by_name(camera_name, max_cameras=10):
+    """
+    Find camera index by matching name.
+
+    Uses substring matching (case-insensitive).
+    Returns camera index or 0 if not found.
+    """
+    if not camera_name:
+        return 0
+
+    camera_name_lower = camera_name.lower()
+
+    # Try pygrabber first (Windows DirectShow device enumeration)
+    if os.name == 'nt':
+        try:
+            from pygrabber.dshow_graph import FilterGraph
+            graph = FilterGraph()
+            devices = graph.get_input_devices()
+
+            # Exact match first
+            for idx, name in enumerate(devices):
+                if name.lower() == camera_name_lower:
+                    send_message({"type": "status", "message": f"Camera matched (exact): {name} at index {idx}"})
+                    return idx
+
+            # Substring match
+            for idx, name in enumerate(devices):
+                if camera_name_lower in name.lower() or name.lower() in camera_name_lower:
+                    send_message({"type": "status", "message": f"Camera matched (partial): {name} at index {idx}"})
+                    return idx
+
+            send_message({"type": "status", "message": f"Camera not found by name: {camera_name}. Available: {devices}"})
+
+        except ImportError:
+            send_message({"type": "status", "message": "pygrabber not available, falling back to index 0"})
+
+    # Fallback to first available camera
+    return 0
+
+
 def main():
     """Main entry point for hand tracking."""
+    args = parse_args()
+
+    # Determine camera index
+    camera_name = getattr(args, 'camera_name', '')
+    if camera_name:
+        camera_index = find_camera_by_name(camera_name)
+        send_message({"type": "status", "message": f"Using camera name '{camera_name}' -> index {camera_index}"})
+    else:
+        camera_index = args.camera
+
     ensure_model()
 
     # Start stdin reader thread
@@ -351,8 +452,11 @@ def main():
     )
     landmarker = HandLandmarker.create_from_options(options)
 
-    # Open webcam
-    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW) if os.name == "nt" else cv2.VideoCapture(0)
+    # Open webcam with selected camera index
+    if os.name == "nt":
+        cap = cv2.VideoCapture(camera_index, cv2.CAP_DSHOW)
+    else:
+        cap = cv2.VideoCapture(camera_index)
 
     if not cap.isOpened():
         send_message({"type": "error", "message": "Cannot open webcam"})
@@ -368,6 +472,7 @@ def main():
     send_message({
         "type": "ready",
         "camera": {
+            "index": camera_index,
             "width": actual_width,
             "height": actual_height
         }
