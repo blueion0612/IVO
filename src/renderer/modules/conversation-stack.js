@@ -12,6 +12,9 @@ export class ConversationStack {
         this.hoverTimer = null;
         this.hoverProgressElement = null;
 
+        // Summary block tracking
+        this.currentSummaryBlock = null;
+
         // Speaker colors
         this.speakerColors = {
             presenter: { bg: "rgba(26, 58, 110, 0.95)", border: "rgba(74, 159, 212, 0.5)", name: "Presenter" },
@@ -24,20 +27,41 @@ export class ConversationStack {
     }
 
     createContainer() {
-        this.container = document.createElement("div");
-        this.container.id = "conversation-stack-container";
-        this.container.style.cssText = `
+        // Main wrapper for both panels
+        this.wrapper = document.createElement("div");
+        this.wrapper.id = "conversation-wrapper";
+        this.wrapper.style.cssText = `
             position: fixed;
             top: 80px;
             right: 20px;
+            display: none;
+            gap: 12px;
+            z-index: 9997;
+            pointer-events: auto;
+        `;
+
+        // Left panel: Summary stack
+        this.summaryPanel = document.createElement("div");
+        this.summaryPanel.id = "summary-panel";
+        this.summaryPanel.style.cssText = `
+            width: 320px;
+            max-height: 75vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+        `;
+
+        // Right panel: Conversation stack
+        this.container = document.createElement("div");
+        this.container.id = "conversation-stack-container";
+        this.container.style.cssText = `
             width: 380px;
             max-height: 75vh;
             padding: 0;
             overflow-y: auto;
             overflow-x: hidden;
-            z-index: 9997;
-            display: none;
-            pointer-events: auto;
         `;
 
         // Add styles
@@ -126,6 +150,17 @@ export class ConversationStack {
                 0%, 100% { opacity: 1; }
                 50% { opacity: 0.5; }
             }
+            #summary-panel::-webkit-scrollbar {
+                width: 6px;
+            }
+            #summary-panel::-webkit-scrollbar-track {
+                background: rgba(0,0,0,0.1);
+                border-radius: 3px;
+            }
+            #summary-panel::-webkit-scrollbar-thumb {
+                background: rgba(255, 193, 7, 0.5);
+                border-radius: 3px;
+            }
         `;
         document.head.appendChild(style);
 
@@ -144,7 +179,10 @@ export class ConversationStack {
         `;
         this.container.appendChild(conversationList);
 
-        document.body.appendChild(this.container);
+        // Assemble wrapper
+        this.wrapper.appendChild(this.summaryPanel);
+        this.wrapper.appendChild(this.container);
+        document.body.appendChild(this.wrapper);
     }
 
     createHeader() {
@@ -316,28 +354,77 @@ export class ConversationStack {
         console.log("[ConversationStack] Added conversation:", speakerInfo.name, text.substring(0, 50));
     }
 
-    addSummary(text) {
+    addSummary(text, isAppend = false) {
         const timestamp = new Date().toLocaleTimeString('ko-KR', {
             hour: '2-digit',
             minute: '2-digit',
             second: '2-digit'
         });
 
-        const id = Date.now().toString();
-        const summary = {
-            id,
-            text,
-            speaker: "summary",
-            speakerName: "Summary",
-            timestamp,
-            isSummary: true
-        };
+        // Show summary panel
+        this.summaryPanel.style.display = "flex";
 
-        this.conversations.push(summary);
-        this.renderSummary(summary);
-        this.scrollToBottom();
+        if (isAppend && this.currentSummaryBlock) {
+            // Append to existing summary block
+            this.appendToSummary(text, timestamp);
+        } else {
+            // Create new summary block
+            const id = Date.now().toString();
+            const summary = {
+                id,
+                text,
+                speaker: "summary",
+                speakerName: "Summary",
+                timestamp,
+                isSummary: true
+            };
 
-        console.log("[ConversationStack] Added summary");
+            this.renderSummaryToPanel(summary);
+            this.currentSummaryBlock = document.getElementById(`summary-${id}`);
+        }
+
+        // Scroll summary panel to bottom
+        setTimeout(() => {
+            this.summaryPanel.scrollTop = this.summaryPanel.scrollHeight;
+        }, 50);
+
+        console.log("[ConversationStack] Added summary, append:", isAppend);
+    }
+
+    appendToSummary(text, timestamp) {
+        if (!this.currentSummaryBlock) return;
+
+        const content = this.currentSummaryBlock.querySelector('.summary-content');
+        if (content) {
+            // Add separator and new content
+            const newEntry = document.createElement("div");
+            newEntry.style.cssText = `
+                margin-top: 12px;
+                padding-top: 10px;
+                border-top: 1px dashed rgba(0,0,0,0.2);
+            `;
+
+            const timeLabel = document.createElement("div");
+            timeLabel.textContent = timestamp;
+            timeLabel.style.cssText = `
+                font-size: 10px;
+                color: rgba(0,0,0,0.5);
+                margin-bottom: 4px;
+            `;
+
+            const textDiv = document.createElement("div");
+            textDiv.textContent = text;
+            textDiv.style.cssText = `
+                font-size: 14px;
+                line-height: 1.6;
+                word-break: keep-all;
+                white-space: pre-wrap;
+            `;
+
+            newEntry.appendChild(timeLabel);
+            newEntry.appendChild(textDiv);
+            content.appendChild(newEntry);
+        }
     }
 
     renderConversation(conversation) {
@@ -493,21 +580,19 @@ export class ConversationStack {
         list.appendChild(item);
     }
 
-    renderSummary(summary) {
-        const list = document.getElementById("conversation-list");
-
+    renderSummaryToPanel(summary) {
         const item = document.createElement("div");
-        item.className = "conversation-item summary-item";
+        item.className = "summary-block";
+        item.id = `summary-${summary.id}`;
         item.dataset.id = summary.id;
         item.style.cssText = `
             padding: 14px;
-            background: linear-gradient(135deg, rgba(255, 193, 7, 0.9), rgba(255, 152, 0, 0.85));
+            background: linear-gradient(135deg, rgba(255, 193, 7, 0.95), rgba(255, 152, 0, 0.9));
             border: 2px solid rgba(255, 215, 0, 0.6);
             border-radius: 12px;
             color: #1a1a1a;
             box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);
             animation: conversationSlideIn 0.3s ease-out;
-            position: relative;
         `;
 
         // Header
@@ -522,20 +607,13 @@ export class ConversationStack {
         `;
 
         const label = document.createElement("span");
-        label.textContent = "LLM Summary";
+        label.textContent = "Q&A Summary";
         label.style.cssText = `
             font-size: 12px;
             font-weight: 700;
             color: #1a1a1a;
             text-transform: uppercase;
             letter-spacing: 1px;
-        `;
-
-        const rightSection = document.createElement("div");
-        rightSection.style.cssText = `
-            display: flex;
-            align-items: center;
-            gap: 8px;
         `;
 
         const timeLabel = document.createElement("span");
@@ -545,37 +623,12 @@ export class ConversationStack {
             color: rgba(0,0,0,0.6);
         `;
 
-        const deleteBtn = document.createElement("button");
-        deleteBtn.className = "delete-btn";
-        deleteBtn.textContent = "×";
-        deleteBtn.style.cssText = `
-            width: 20px;
-            height: 20px;
-            border: none;
-            background: rgba(0,0,0,0.2);
-            color: #1a1a1a;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 14px;
-            line-height: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0.5;
-        `;
-        deleteBtn.onclick = (e) => {
-            e.stopPropagation();
-            this.deleteConversation(summary.id);
-        };
-
-        rightSection.appendChild(timeLabel);
-        rightSection.appendChild(deleteBtn);
         header.appendChild(label);
-        header.appendChild(rightSection);
+        header.appendChild(timeLabel);
 
-        // Content
+        // Content container (for appending)
         const content = document.createElement("div");
-        content.textContent = summary.text;
+        content.className = "summary-content";
         content.style.cssText = `
             font-size: 14px;
             line-height: 1.6;
@@ -584,9 +637,13 @@ export class ConversationStack {
             color: #1a1a1a;
         `;
 
+        const textDiv = document.createElement("div");
+        textDiv.textContent = summary.text;
+        content.appendChild(textDiv);
+
         item.appendChild(header);
         item.appendChild(content);
-        list.appendChild(item);
+        this.summaryPanel.appendChild(item);
     }
 
     deleteConversation(id) {
@@ -655,11 +712,11 @@ export class ConversationStack {
     checkHover(x, y) {
         if (!this.isVisible()) return null;
 
-        const containerRect = this.container.getBoundingClientRect();
+        const wrapperRect = this.wrapper.getBoundingClientRect();
 
-        // Check if inside container at all
-        if (x < containerRect.left || x > containerRect.right ||
-            y < containerRect.top || y > containerRect.bottom) {
+        // Check if inside wrapper at all
+        if (x < wrapperRect.left || x > wrapperRect.right ||
+            y < wrapperRect.top || y > wrapperRect.bottom) {
             this.clearHoverStates();
             this.cancelHoverTimer();
             return null;
@@ -822,13 +879,16 @@ export class ConversationStack {
     }
 
     async requestSummary() {
-        // Filter only non-summary conversations
+        // Filter only non-summary conversations (all conversations in the list are non-summary now)
         const toSummarize = this.conversations.filter(c => !c.isSummary);
 
         if (toSummarize.length === 0) {
             console.log("[ConversationStack] No conversations to summarize");
             return;
         }
+
+        // Check if we already have a summary block (append mode)
+        const hasExistingSummary = this.currentSummaryBlock !== null && this.currentSummaryBlock !== undefined;
 
         // Prepare conversation data for API
         const conversationData = toSummarize.map(c => ({
@@ -837,7 +897,7 @@ export class ConversationStack {
             timestamp: c.timestamp
         }));
 
-        console.log("[ConversationStack] Requesting summary for", toSummarize.length, "conversations");
+        console.log("[ConversationStack] Requesting summary for", toSummarize.length, "conversations, append:", hasExistingSummary);
 
         try {
             // Call summary API through IPC
@@ -855,7 +915,8 @@ export class ConversationStack {
 
                     // Add summary after animations complete
                     setTimeout(() => {
-                        this.addSummary(result.summary);
+                        // If we have an existing summary, append to it
+                        this.addSummary(result.summary, hasExistingSummary);
                     }, idsToRemove.length * 50 + 300);
                 } else {
                     console.error("[ConversationStack] Summary failed:", result?.error || "Unknown error");
@@ -867,6 +928,7 @@ export class ConversationStack {
     }
 
     clearAll() {
+        // Clear conversations
         const items = [...document.querySelectorAll('.conversation-item')];
         items.forEach((item, index) => {
             setTimeout(() => {
@@ -874,14 +936,29 @@ export class ConversationStack {
             }, index * 30);
         });
 
+        // Clear summary panel
+        const summaryBlocks = [...document.querySelectorAll('.summary-block')];
+        summaryBlocks.forEach((item, index) => {
+            setTimeout(() => {
+                item.style.animation = "conversationFadeOut 0.3s ease-out forwards";
+            }, index * 30);
+        });
+
         setTimeout(() => {
             this.conversations = [];
+            this.currentSummaryBlock = null;
+
             const list = document.getElementById("conversation-list");
             if (list) {
                 list.innerHTML = "";
             }
-            console.log("[ConversationStack] All conversations cleared");
-        }, items.length * 30 + 300);
+
+            // Clear summary panel
+            this.summaryPanel.innerHTML = "";
+            this.summaryPanel.style.display = "none";
+
+            console.log("[ConversationStack] All conversations and summaries cleared");
+        }, Math.max(items.length, summaryBlocks.length) * 30 + 300);
     }
 
     scrollToBottom() {
@@ -893,7 +970,7 @@ export class ConversationStack {
     // Recording mode management
     enterRecordingMode() {
         this.isRecordingMode = true;
-        this.container.style.display = "block";
+        this.wrapper.style.display = "flex";
         this.updateStatusIndicator();
         console.log("[ConversationStack] Entered recording mode");
     }
@@ -911,15 +988,15 @@ export class ConversationStack {
     }
 
     show() {
-        this.container.style.display = "block";
+        this.wrapper.style.display = "flex";
     }
 
     hide() {
-        this.container.style.display = "none";
+        this.wrapper.style.display = "none";
     }
 
     isVisible() {
-        return this.container.style.display !== "none";
+        return this.wrapper.style.display !== "none";
     }
 
     getCount() {

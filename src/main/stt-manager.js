@@ -102,8 +102,9 @@ class STTManager {
     /**
      * Start STT service (loads Whisper model)
      * @param {string} basePath - Base path for script lookup
+     * @param {string} micName - Microphone device name for matching (default: '')
      */
-    start(basePath) {
+    start(basePath, micName = '') {
         if (this.process) {
             console.log("[STT] Already running");
             return;
@@ -131,11 +132,18 @@ class STTManager {
         env.PYTHONUNBUFFERED = "1";
         env.KMP_DUPLICATE_LIB_OK = "TRUE";
 
+        // Build arguments with microphone name
+        const args = [scriptPath];
+        if (micName) {
+            args.push('--mic-name', micName);
+        }
+
         console.log(`[STT] Python: ${pythonCmd}`);
         console.log(`[STT] Script: ${scriptPath}`);
+        console.log(`[STT] Mic name: ${micName || '(default)'}`);
 
         try {
-            this.process = spawn(pythonCmd, [scriptPath], {
+            this.process = spawn(pythonCmd, args, {
                 cwd: scriptDir,
                 windowsHide: true,
                 env: env,
@@ -203,6 +211,14 @@ class STTManager {
             case "ready":
                 console.log("[STT] Service ready - Whisper model loaded");
                 this.isMicrophoneReady = true;
+                break;
+
+            case "info":
+                console.log("[STT]", msg.message);
+                break;
+
+            case "warning":
+                console.warn("[STT] Warning:", msg.message);
                 break;
 
             case "recording_started":

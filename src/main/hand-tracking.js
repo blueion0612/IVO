@@ -104,8 +104,9 @@ class HandTrackingManager {
     /**
      * Start hand tracking
      * @param {string} basePath - Base path for script lookup
+     * @param {string} cameraName - Camera device name for matching (default: '')
      */
-    start(basePath) {
+    start(basePath, cameraName = '') {
         if (this.process) {
             console.log("[HandTracking] Already running");
             return;
@@ -132,11 +133,18 @@ class HandTrackingManager {
         env.PYTHONIOENCODING = "utf-8";
         env.PYTHONUNBUFFERED = "1";
 
+        // Build arguments with camera name
+        const args = [scriptPath];
+        if (cameraName) {
+            args.push('--camera-name', cameraName);
+        }
+
         console.log(`[HandTracking] Python: ${pythonCmd}`);
         console.log(`[HandTracking] Script: ${scriptPath}`);
+        console.log(`[HandTracking] Camera name: ${cameraName || '(default)'}`);
 
         try {
-            this.process = spawn(pythonCmd, [scriptPath], {
+            this.process = spawn(pythonCmd, args, {
                 cwd: scriptDir,
                 windowsHide: true,
                 env: env,

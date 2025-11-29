@@ -11,6 +11,7 @@ const GestureWebSocketServer = require("./websocket-server");
 const PresentationTimer = require("./timer");
 const STTManager = require("./stt-manager");
 const SummarizerManager = require("./summarizer-manager");
+const { VocabManager } = require("./vocab-manager");
 const { pptPrev, pptNext, jumpSlides } = require("./ppt-controller");
 const { setupOCRHandlers } = require("./ocr-handlers");
 
@@ -34,6 +35,7 @@ const wsServer = new GestureWebSocketServer(config);
 const timer = new PresentationTimer();
 const sttManager = new STTManager(config);
 const summarizerManager = new SummarizerManager(config);
+const vocabManager = new VocabManager();
 const colorPalette = config.colors.palette;
 let currentColorIndex = 0;
 let currentSpeaker = "presenter";  // Current speaker selection
@@ -168,14 +170,25 @@ sttManager.onMessage((msg) => {
         case "transcription":
             console.log(`[STT] Text: ${msg.text}`);
             if (win && win.webContents) {
-                win.webContents.send("cmd", {
-                    type: "sttTranscription",
-                    text: msg.text,
-                    lang: msg.lang,
-                    prob: msg.prob,
-                    duration: msg.duration,
-                    speaker: currentSpeaker
-                });
+                // Different handling based on active feature
+                if (activeFeature === "stickyNote") {
+                    win.webContents.send("cmd", {
+                        type: "stickyNoteTranscription",
+                        text: msg.text,
+                        lang: msg.lang,
+                        prob: msg.prob,
+                        duration: msg.duration
+                    });
+                } else {
+                    win.webContents.send("cmd", {
+                        type: "sttTranscription",
+                        text: msg.text,
+                        lang: msg.lang,
+                        prob: msg.prob,
+                        duration: msg.duration,
+                        speaker: currentSpeaker
+                    });
+                }
             }
             break;
 
@@ -229,7 +242,7 @@ function handleCode(code, payload = {}) {
             // Up gesture - Toggle hand tracking pointer mode (works globally)
             if (!handTracking.isRunning()) {
                 // Start hand tracking with pointer mode
-                handTracking.start(basePath);
+                handTracking.start(basePath, selectedDevices.cameraName);
                 if (win && win.webContents) {
                     win.webContents.send("cmd", { type: "startHandPointer" });
                 }
@@ -300,7 +313,7 @@ function handleCode(code, payload = {}) {
                 return;
             }
             activeFeature = "recording";
-            sttManager.start(basePath);
+            sttManager.start(basePath, selectedDevices.micName);
             win.webContents.send("cmd", { type: "recordingModeEnter" });
             setClickThrough(true);
             showOverlayMessage("🎙️ Recording Mode - Ready");
@@ -313,7 +326,7 @@ function handleCode(code, payload = {}) {
                 return;
             }
             activeFeature = "handDraw";
-            handTracking.start(basePath);
+            handTracking.start(basePath, selectedDevices.cameraName);
             win.webContents.send("cmd", { type: "toggleHandDraw" });
             win.webContents.send("cmd", { type: "setPointerMode", enabled: true });
             setClickThrough(true);
@@ -334,21 +347,41 @@ function handleCode(code, payload = {}) {
             break;
 
         case "8":
-            // Circle CCW - Exit recording mode (stop STT service)
-            if (activeFeature !== "recording") {
-                showOverlayMessage("⚠️ Not in recording mode");
+            // Circle CCW - Enter/Exit Sticky Note mode
+            if (activeFeature && activeFeature !== "stickyNote") {
+                showOverlayMessage("⚠️ Reset first");
                 return;
             }
-            // Stop recording if active
-            if (sttManager.isRecording()) {
-                sttManager.stopRecording();
+
+            if (activeFeature === "stickyNote") {
+                // Exit sticky note mode
+                win.webContents.send("cmd", { type: "stickyNoteModeExit" });
+                // Stop STT if running
+                if (sttManager.isRecording()) {
+                    sttManager.stopRecording();
+                }
+                sttManager.stop();
+                // Stop vocab manager
+                vocabManager.stop();
+                // Stop hand tracking
+                handTracking.stop();
+                setClickThrough(true);
+                activeFeature = null;
+                showOverlayMessage("📝 Sticky Note Mode Exit");
+            } else {
+                // Enter sticky note mode
+                activeFeature = "stickyNote";
+                // Start hand tracking for cursor
+                handTracking.start(basePath, selectedDevices.cameraName);
+                // Start STT service
+                sttManager.start(basePath, selectedDevices.micName);
+                // Start vocab manager for dictionary lookups
+                vocabManager.start(basePath);
+                win.webContents.send("cmd", { type: "stickyNoteModeEnter" });
+                setClickThrough(false);
+                showOverlayMessage("📝 Sticky Note Mode ON");
             }
-            sttManager.stop();
-            win.webContents.send("cmd", { type: "recordingModeExit" });
-            setClickThrough(true);
-            activeFeature = null;
-            showOverlayMessage("⏹ Recording Mode Exit");
-            wsServer.sendHaptic("recording_toggle");
+            wsServer.sendHaptic("mode_drawing");
             break;
 
         case "9":
@@ -450,7 +483,7 @@ function handleCode(code, payload = {}) {
         case "H":
         case "h":
             activeFeature = "handDraw";
-            handTracking.start(basePath);
+            handTracking.start(basePath, selectedDevices.cameraName);
             win.webContents.send("cmd", { type: "toggleHandDraw" });
             setClickThrough(true);
             showOverlayMessage("✋ Hand Drawing Mode");
@@ -468,7 +501,7 @@ function handleCode(code, payload = {}) {
 
             // Start hand tracking if not running, then calibrate
             if (!handTracking.isRunning()) {
-                handTracking.start(basePath);
+                handTracking.start(basePath, selectedDevices.cameraName);
                 // Wait a bit for hand tracking to initialize
                 setTimeout(() => {
                     win.webContents.send("cmd", { type: "toggleHandDraw" });
@@ -749,9 +782,11 @@ function getWiFiName() {
 
 function createLauncherWindow() {
     launcherWin = new BrowserWindow({
-        width: 500,
-        height: 520,
-        resizable: false,
+        width: 850,
+        height: 580,
+        resizable: true,
+        minWidth: 700,
+        minHeight: 500,
         frame: true,
         backgroundColor: "#0d1f3c",
         webPreferences: {
@@ -784,6 +819,15 @@ ipcMain.handle("get-network-info", async () => {
     return { ip, wifi };
 });
 
+// Store selected device settings globally
+let selectedDevices = {
+    cameraIndex: 0,
+    cameraDeviceId: null,
+    cameraName: '',
+    micName: '',
+    micDeviceId: null
+};
+
 ipcMain.on("start-overlay", (event, networkInfo) => {
     if (launcherWin) {
         launcherWin.close();
@@ -796,6 +840,18 @@ ipcMain.on("start-overlay", (event, networkInfo) => {
         } catch (err) {
             console.error("[App] Failed to save config:", err);
         }
+    }
+
+    // Store device selections
+    if (networkInfo) {
+        selectedDevices.cameraIndex = networkInfo.cameraIndex || 0;
+        selectedDevices.cameraDeviceId = networkInfo.cameraDeviceId || null;
+        selectedDevices.cameraName = networkInfo.cameraName || '';
+        selectedDevices.micName = networkInfo.micName || '';
+        selectedDevices.micDeviceId = networkInfo.micDeviceId || null;
+        console.log(`[App] Selected camera index: ${selectedDevices.cameraIndex}`);
+        console.log(`[App] Selected camera name: ${selectedDevices.cameraName}`);
+        console.log(`[App] Selected mic name: ${selectedDevices.micName}`);
     }
 
     wsServer.start();
@@ -857,7 +913,19 @@ app.on("will-quit", () => {
     gestureController.stop();
     sttManager.stop();
     summarizerManager.stop();
+    vocabManager.stop();
     wsServer.stop();
+});
+
+// Vocabulary dictionary lookup
+ipcMain.handle("vocab-lookup", async (event, word) => {
+    try {
+        const result = await vocabManager.lookup(word);
+        return result;
+    } catch (err) {
+        console.error("[Vocab] Lookup error:", err);
+        return { error: err.message, word };
+    }
 });
 
 app.on("window-all-closed", () => {
