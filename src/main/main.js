@@ -496,24 +496,22 @@ function handleCode(code, payload = {}) {
             // Clear saved calibration when user explicitly requests new calibration
             handTracking.clearSavedCalibration();
 
-            // Activate hand pointer mode along with calibration
-            activeFeature = "handDraw";
+            // Activate calibration mode (not drawing mode)
+            activeFeature = "calibration";
 
             // Start hand tracking if not running, then calibrate
             if (!handTracking.isRunning()) {
                 handTracking.start(basePath, selectedDevices.cameraName);
                 // Wait a bit for hand tracking to initialize
                 setTimeout(() => {
-                    win.webContents.send("cmd", { type: "toggleHandDraw" });
-                    win.webContents.send("cmd", { type: "setPointerMode", enabled: true });
+                    win.webContents.send("cmd", { type: "startCalibrationMode" });
                     win.webContents.send("cmd", { type: "CALIBRATE" });
                     setClickThrough(true);
                     showOverlayMessage("📐 Calibration Started");
                     wsServer.sendHaptic("calibration_point");
                 }, 1000);
             } else {
-                win.webContents.send("cmd", { type: "toggleHandDraw" });
-                win.webContents.send("cmd", { type: "setPointerMode", enabled: true });
+                win.webContents.send("cmd", { type: "startCalibrationMode" });
                 win.webContents.send("cmd", { type: "CALIBRATE" });
                 setClickThrough(true);
                 showOverlayMessage("📐 Calibration");

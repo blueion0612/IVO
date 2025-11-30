@@ -593,8 +593,9 @@ window.electronAPI?.onCmd((data) => {
             break;
 
         case "handCursor":
-            // Allow hand cursor in drawing mode, pointer-only mode, or sticky note mode
-            if (!handDrawingMode && !handPointerMode && !stickyNoteMode) return;
+            // Allow hand cursor in drawing mode, pointer-only mode, sticky note mode, or calibration mode
+            const isCalibrating = calibration.isActive();
+            if (!handDrawingMode && !handPointerMode && !stickyNoteMode && !isCalibrating) return;
 
             const screenPos = handCursor.updatePosition(data.position);
 
@@ -681,6 +682,14 @@ window.electronAPI?.onCmd((data) => {
 
         case "calibrationReset":
             calibration.reset();
+            break;
+
+        // ===== Calibration mode (just show hand cursor for calibration) =====
+        case "startCalibrationMode":
+            // Show hand cursor in pointer mode for calibration, but don't enable drawing mode
+            handCursor.setPointerMode(true);
+            handCursor.show();
+            console.log("[Control] Calibration mode started (pointer only)");
             break;
 
         // ===== Calibration gesture/command =====
