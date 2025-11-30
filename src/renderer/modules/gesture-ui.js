@@ -75,7 +75,7 @@ export class GestureUI {
             { gesture: "⬆️ Up", action: "Pointer Mode" },
             { gesture: "⬇️ Down", action: "Record Toggle" },
             { gesture: "🔃 Circle CW", action: "Recording Mode" },
-            { gesture: "🔄 Circle CCW", action: "Exit Recording" },
+            { gesture: "🔄 Circle CCW", action: "Sticky Note Mode" },
             { gesture: "⏪ Double Left", action: "Jump -3 Slides" },
             { gesture: "⏩ Double Right", action: "Jump +3 Slides" },
             { gesture: "✖️ X Shape", action: "Reset All" },
