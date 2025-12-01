@@ -1,4 +1,4 @@
-# IVO System Pipeline - 논문용 상세 설명
+# IVO System Pipeline - 기술 문서
 
 ## 1. 전체 시스템 개요 (System Overview)
 
@@ -100,7 +100,7 @@ IVO(IMU-Vision Overlay)는 스마트워치의 IMU 센서와 웹캠 기반 핸드
 | 2 | up | 0 | Overlay ON |
 | 3 | down | 1 | Overlay OFF / STT Toggle |
 | 4 | circle_cw | 5 | Start STT Session |
-| 5 | circle_ccw | 8 | Summarize & Exit STT |
+| 5 | circle_ccw | 8 | Sticky Note Mode / Summarize & Exit STT |
 | 6 | double_left | JUMP_3_PREV | Jump -3 Slides |
 | 7 | double_right | JUMP_3_NEXT | Jump +3 Slides |
 | 8 | x | 2 | Reset All |
@@ -1008,21 +1008,3 @@ win.setIgnoreMouseEvents(true, { forward: true });
 | **Hand Landmark** | MediaPipe | 640×480 RGB | 21 landmarks |
 | **Whisper** | Transformer (large-v3) | 16kHz audio | Text |
 | **KoBART** | BART Encoder-Decoder | Text | Summary |
-
----
-
-## 12. 논문 Figure 제안
-
-본 문서의 다이어그램을 기반으로 다음 Figure들을 제안합니다:
-
-1. **Figure 1**: System Overview - 전체 하드웨어/소프트웨어 구성도 (Section 9.1)
-2. **Figure 2**: Two-Stage Gesture Recognition Architecture (Section 2.2)
-3. **Figure 3**: IMU Data Flow - 스마트워치에서 데스크톱까지 (Section 2.1)
-4. **Figure 4**: Hand Tracking Pipeline with Calibration (Section 3.1, 3.2)
-5. **Figure 5**: STT & Summarization Workflow (Section 4.2, 5.1)
-6. **Figure 6**: Sticky Note Mode Architecture (Section 7.1)
-7. **Figure 7**: Electron Overlay Architecture (Section 8)
-8. **Figure 8**: Haptic Feedback Loop (Section 9.2)
-9. **Table 1**: Supported Gestures and Commands (Section 2.3)
-10. **Table 2**: Electron Features Utilization (Section 8.6)
-11. **Table 3**: System Latency Analysis (Section 10)
