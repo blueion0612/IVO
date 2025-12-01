@@ -1,6 +1,6 @@
 {
   "name": "ivo-imu-vision-overlay",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "description": "IVO - IMU-Vision Overlay for PPT Gesture Control",
   "main": "src/main/main.js",
   "scripts": {
