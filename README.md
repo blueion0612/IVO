@@ -27,7 +27,7 @@
 - **Hand Tracking Mode**: Draw and point on screen using webcam-based hand detection
 - **Real-time OCR**: Handwriting-to-text conversion with calculation and graph generation
 - **Speech-to-Text (STT)**: Local Whisper-based transcription with CUDA acceleration
-- **Q&A Summarization**: KoBART-based Korean text summarization for Q&A sessions
+- **Q&A Summarization**: Ollama LLM (gemma2:9b) for high-quality Q&A summarization
 - **Sticky Note Mode**: Voice-to-text sticky notes with dictionary lookup (Korean/English)
 - **Vocabulary Dictionary**: Korean (국립국어원 API) and English (Free Dictionary API) word definitions
 - **Presentation Timer**: Built-in timer for time management
@@ -119,8 +119,10 @@ pip install torch mediapipe opencv-python numpy sympy matplotlib pillow requests
 # Install Python dependencies (STT - requires CUDA)
 pip install faster-whisper sounddevice
 
-# Install Python dependencies (Summarization)
-pip install transformers
+# Install Ollama for Q&A Summarization
+# Download from https://ollama.com/download
+# Then pull the model:
+ollama pull gemma2:9b
 ```
 
 ### Step 3: Download Model Weights
@@ -238,10 +240,11 @@ Control PowerPoint, Keynote, or any presentation software using wrist gestures d
 - **Scrollable History**: Full conversation history with auto-scroll
 
 **Q&A Summarization:**
-- **KoBART Model**: Korean BART model for abstractive summarization
+- **Ollama LLM (gemma2:9b)**: High-quality abstractive summarization using local LLM
 - **Q/A Pair Extraction**: Automatically groups questions with presenter answers
-- **Bullet-point Format**: Clean, readable summary output
-- **Fallback Mode**: Rule-based summarization when model unavailable
+- **Full Context Summarization**: Both questions and answers are summarized preserving all key topics
+- **Bullet-point Format**: Clean, readable summary output (Q1/A1, Q2/A2 format)
+- **Fallback Mode**: Rule-based summarization when Ollama unavailable
 
 **STT Workflow:**
 1. **Circle CW** → Initialize STT session (loads Whisper model)
@@ -523,7 +526,7 @@ ivo/
 │   │   └── hand_tracker.py      # MediaPipe hand tracking
 │   ├── stt/                     # Speech-to-Text
 │   │   ├── stt_server.py        # Whisper STT server
-│   │   ├── qa_summarizer.py     # KoBART summarization module
+│   │   ├── qa_summarizer.py     # Ollama LLM summarization module
 │   │   └── qa_summarizer_server.py
 │   ├── vocab/                   # Vocabulary dictionary
 │   │   └── vocab_server.py      # Korean/English dictionary server

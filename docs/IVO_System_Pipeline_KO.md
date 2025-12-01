@@ -323,11 +323,11 @@ Raw IMU Data (가변 샘플레이트, ~50Hz)
 │                          │                                               │
 │                          ▼                                               │
 │   ┌─────────────────────────────────────────────────────────────────┐   │
-│   │              KoBART Summarization Model                          │   │
-│   │  - Model: digit82/kobart-summarization                          │   │
-│   │  - Tokenizer: PreTrainedTokenizerFast                           │   │
-│   │  - Max length: 1024 tokens                                       │   │
-│   │  - Generation: beam search (num_beams=4)                         │   │
+│   │              Ollama LLM 요약 (gemma2:9b)                         │   │
+│   │  - Ollama 서버를 통한 로컬 LLM                                   │   │
+│   │  - Model: gemma2:9b (고품질 추상적 요약)                         │   │
+│   │  - 질문과 답변 모두 LLM으로 요약                                  │   │
+│   │  - 모든 핵심 주제 및 기술 용어 보존                               │   │
 │   └─────────────────────────────────────────────────────────────────┘   │
 │                          │                                               │
 │                          ▼                                               │
@@ -885,7 +885,7 @@ win.setIgnoreMouseEvents(true, { forward: true });
 │  │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │ │  │
 │  │  │  │hand_tracker │  │ stt_server  │  │qa_summarizer│  │  OCR CLIs   │        │ │  │
 │  │  │  │  .py        │  │    .py      │  │  _server.py │  │             │        │ │  │
-│  │  │  │ (MediaPipe) │  │  (Whisper)  │  │  (KoBART)   │  │ (SymPy, etc)│        │ │  │
+│  │  │  │ (MediaPipe) │  │  (Whisper)  │  │  (Ollama)   │  │ (SymPy, etc)│        │ │  │
 │  │  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘        │ │  │
 │  │  └─────────────────────────────────────────────────────────────────────────────┘ │  │
 │  │                                                                                    │  │
@@ -994,7 +994,7 @@ win.setIgnoreMouseEvents(true, { forward: true });
 | **ML/CV** | PyTorch | IMU 제스처 인식 모델 |
 | | MediaPipe | 핸드 트래킹 |
 | | faster-whisper | 음성 인식 (STT) |
-| | KoBART | 한국어 요약 |
+| | Ollama (gemma2:9b) | Q&A 요약 |
 | **Communication** | WebSocket | 제스처 이벤트 전송 |
 | | UDP | IMU 데이터/햅틱 피드백 |
 | | Electron IPC | 프로세스 간 통신 |
@@ -1007,4 +1007,4 @@ win.setIgnoreMouseEvents(true, { forward: true });
 | **Stage2** | TCN (3 layers, k=3) | (100, 12) | 15-class softmax |
 | **Hand Landmark** | MediaPipe | 640×480 RGB | 21 landmarks |
 | **Whisper** | Transformer (large-v3) | 16kHz audio | Text |
-| **KoBART** | BART Encoder-Decoder | Text | Summary |
+| **Ollama LLM** | gemma2:9b | Q&A Text | Summary |
