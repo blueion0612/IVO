@@ -1,14 +1,11 @@
 """
 QA Summarizer Server - JSON protocol based local summarization service
-Uses KoBART for Korean text summarization with GPU acceleration
+Uses Ollama LLM for high-quality Korean text summarization
 
 Protocol:
     Input (stdin):  {"command": "summarize", "conversations": [...]}
     Output (stdout): {"type": "ready|summary|error", ...}
 """
-
-import os
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"  # Avoid OMP Error #15 (Windows + CUDA)
 
 import sys
 import json
@@ -18,9 +15,8 @@ from typing import List, Optional
 from qa_summarizer import (
     Utterance,
     QAPairBuilder,
-    KoBartSummarizer,
+    OllamaSummarizer,
     QASummaryGenerator,
-    _HAS_TRANSFORMERS
 )
 
 
@@ -33,22 +29,21 @@ def send_message(msg_type: str, **kwargs):
 class QASummarizerServer:
     """JSON protocol based QA Summarizer server for Electron communication"""
 
-    def __init__(self) -> None:
-        send_message("info", message="Loading KoBART summarization model...")
+    def __init__(self, model: str = "gemma2:2b") -> None:
+        send_message("info", message=f"Loading Ollama summarizer (model: {model})...")
 
         try:
             self.qa_builder = QAPairBuilder()
-            self.summarizer = KoBartSummarizer(device=None, use_model=True)
+            self.summarizer = OllamaSummarizer(model=model)
             self.generator = QASummaryGenerator(
                 self.qa_builder,
                 self.summarizer,
-                max_question_chars=120,
-                max_answer_tokens=80,
+                max_question_chars=150,
                 debug=False
             )
-            send_message("ready", model_enabled=self.summarizer.enabled)
+            send_message("ready", model_enabled=self.summarizer.enabled, model=model)
         except Exception as e:
-            send_message("error", message=f"Failed to load model: {str(e)}")
+            send_message("error", message=f"Failed to load summarizer: {str(e)}")
             raise
 
     def _convert_conversations(self, conversations: List[dict]) -> List[Utterance]:
@@ -138,8 +133,15 @@ class QASummarizerServer:
 
 
 if __name__ == "__main__":
+    # Default model - can be changed to gemma2:9b for better quality
+    model = "gemma2:2b"
+
+    # Check for command line argument
+    if len(sys.argv) > 1:
+        model = sys.argv[1]
+
     try:
-        server = QASummarizerServer()
+        server = QASummarizerServer(model=model)
         server.run()
     except Exception as e:
         send_message("error", message=f"Server initialization failed: {str(e)}")

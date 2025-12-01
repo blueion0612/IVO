@@ -3,17 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Literal, Optional
 import re
+import json
 
-# Import transformers/torch (fallback to simple summarizer if unavailable)
+# Try to import requests for Ollama API
 try:
-    import torch
-    from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
-
-    _HAS_TRANSFORMERS = True
-except Exception as e:
-    print("[WARN] transformers/torch import failed, KoBART summarization disabled.")
-    print("       Error:", e)
-    _HAS_TRANSFORMERS = False
+    import requests
+    _HAS_REQUESTS = True
+except ImportError:
+    _HAS_REQUESTS = False
 
 
 # ===== Data Structures =====
@@ -87,154 +84,167 @@ class QAPairBuilder:
 
 class SimpleSentenceSummarizer:
     """
-    Simple summarizer that:
-    - Splits text by sentence boundaries (.!?...)
-    - Keeps only the first N sentences
+    Extractive summarizer that:
+    - Splits text by sentence boundaries
+    - Keeps the most informative sentences
     """
 
-    def __init__(self, max_sentences: int = 2) -> None:
+    def __init__(self, max_sentences: int = 2, max_chars: int = 250) -> None:
         self.max_sentences = max_sentences
+        self.max_chars = max_chars
 
     def summarize(self, text: str) -> str:
         text = text.strip()
         if not text:
             return ""
 
-        # Return as-is if short
-        if len(text) < 40:
+        # Return as-is if short enough
+        if len(text) <= self.max_chars:
             return text
 
-        # Simple sentence splitting
-        sentences = re.split(r'(?<=[\.!?…])\s+', text)
+        # Sentence splitting
+        sentences = re.split(r'(?<=[.!?。])\s+', text)
         sentences = [s.strip() for s in sentences if s.strip()]
 
         if not sentences:
-            return text
+            return text[:self.max_chars] + "..."
 
-        return " ".join(sentences[: self.max_sentences])
+        # If few sentences, return all
+        if len(sentences) <= self.max_sentences:
+            return " ".join(sentences)
+
+        # Return first N sentences (usually contains the key info)
+        result = " ".join(sentences[:self.max_sentences])
+        if len(result) > self.max_chars:
+            result = result[:self.max_chars].rsplit(" ", 1)[0] + "..."
+
+        return result
 
 
-# ===== KoBART Summarizer (Falls back to Simple Summarizer if unavailable) =====
+# ===== Ollama LLM Summarizer =====
 
-class KoBartSummarizer:
+class OllamaSummarizer:
     """
-    Korean text summarizer based on gogamza/kobart-summarization.
-    Auto-fallback to SimpleSentenceSummarizer if transformers/torch loading fails.
+    Summarizer using local Ollama LLM.
+    Provides high-quality abstractive summarization for Q&A contexts.
     """
+
+    # Optimized system prompt for better summarization
+    SYSTEM_PROMPT = """당신은 전문 회의록 요약가입니다. 발표자의 답변을 정확하고 간결하게 요약합니다.
+
+## 요약 원칙
+1. 핵심 정보를 빠짐없이 포함 (기술명, 수치, 조건 등)
+2. 1-2문장으로 압축하되, 중요한 세부사항은 유지
+3. 원문에 없는 내용을 추가하지 않음
+4. "~입니다", "~합니다" 등 존댓말로 마무리
+5. 요약문만 출력 (다른 설명이나 서문 없이)"""
 
     def __init__(
         self,
-        model_name: str = "gogamza/kobart-summarization",
-        device: Optional[str] = None,
-        max_input_tokens: int = 512,
-        num_beams: int = 4,
-        use_model: bool = True,
+        model: str = "gemma2:9b",
+        base_url: str = "http://localhost:11434",
+        timeout: int = 60,
     ) -> None:
-        self.simple = SimpleSentenceSummarizer(max_sentences=2)
+        self.model = model
+        self.base_url = base_url
+        self.timeout = timeout
+        self.simple = SimpleSentenceSummarizer()
+        self.enabled = False
 
-        self.enabled = _HAS_TRANSFORMERS and use_model
-        self.model = None
-        self.tokenizer = None
-
-        if not self.enabled:
-            print("[INFO] KoBART disabled: Using SimpleSentenceSummarizer only.")
+        if not _HAS_REQUESTS:
+            print("[WARN] requests module not found. Using simple summarizer.")
             return
 
+        # Check if Ollama is available
         try:
-            if device is None:
-                device = "cuda" if torch.cuda.is_available() else "cpu"
-
-            print(f"[INFO] Loading summarization model... ({model_name}, device={device})")
-            self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-            self.model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
-            self.device = device
-            self.model.to(device)
-            self.model.eval()
-            self.max_input_tokens = max_input_tokens
-            self.num_beams = num_beams
-            print("[INFO] KoBART summarization model loaded.")
+            resp = requests.get(f"{base_url}/api/tags", timeout=5)
+            if resp.status_code == 200:
+                models = [m["name"] for m in resp.json().get("models", [])]
+                # Check if requested model is available (handle both "gemma2:2b" and "gemma2:2b-instruct" formats)
+                model_base = model.split(":")[0]
+                if any(model_base in m for m in models):
+                    self.enabled = True
+                    print(f"[INFO] Ollama summarizer enabled (model: {model})")
+                else:
+                    print(f"[WARN] Model '{model}' not found. Available: {models}")
+                    print(f"[INFO] Run 'ollama pull {model}' to install.")
+            else:
+                print("[WARN] Ollama server not responding properly.")
+        except requests.exceptions.ConnectionError:
+            print("[WARN] Ollama server not running. Using simple summarizer.")
         except Exception as e:
-            print("[WARN] KoBART loading failed, falling back to SimpleSentenceSummarizer.")
-            print("       Error:", e)
-            self.enabled = False
+            print(f"[WARN] Ollama check failed: {e}")
 
-    def summarize(self, text: str, max_output_tokens: int = 64) -> str:
-        """
-        Summarize answer text to 1-2 sentences.
-        """
-        # Use simple summarizer if model disabled
-        if not self.enabled or self.model is None or self.tokenizer is None:
-            return self.simple.summarize(text)
-
+    def summarize(self, text: str, max_tokens: int = 150) -> str:
+        """Summarize text using Ollama LLM."""
         text = text.strip()
         if not text:
             return ""
 
-        # Skip model for very short text
-        if len(text) < 40:
+        # Short text doesn't need summarization
+        if len(text) < 80:
+            return text
+
+        if not self.enabled:
             return self.simple.summarize(text)
 
         try:
-            inputs = self.tokenizer(
-                [text],
-                max_length=self.max_input_tokens,
-                truncation=True,
-                return_tensors="pt",
+            prompt = f"""[답변 원문]
+{text}
+
+[요약]"""
+
+            response = requests.post(
+                f"{self.base_url}/api/generate",
+                json={
+                    "model": self.model,
+                    "prompt": prompt,
+                    "system": self.SYSTEM_PROMPT,
+                    "stream": False,
+                    "options": {
+                        "num_predict": max_tokens,
+                        "temperature": 0.2,
+                        "top_p": 0.85,
+                        "top_k": 40,
+                    }
+                },
+                timeout=self.timeout,
             )
 
-            input_ids = inputs["input_ids"].to(self.device)
-            attention_mask = inputs["attention_mask"].to(self.device)
+            if response.status_code == 200:
+                result = response.json().get("response", "").strip()
+                # Clean up the result
+                result = self._clean_output(result)
+                if result:
+                    return result
 
-            with torch.no_grad():
-                output_ids = self.model.generate(
-                    input_ids=input_ids,
-                    attention_mask=attention_mask,
-                    num_beams=self.num_beams,
-                    max_length=max_output_tokens,
-                    no_repeat_ngram_size=3,
-                    early_stopping=True,
-                )
-
-            summary = self.tokenizer.decode(output_ids[0], skip_special_tokens=True)
-            summary = summary.strip()
-            summary = self._clean_repetition(summary)
-            summary = self._first_sentence(summary)
-            return summary or self.simple.summarize(text)
-        except Exception as e:
-            print("[WARN] KoBART summarization error, falling back to SimpleSentenceSummarizer.")
-            print("       Error:", e)
             return self.simple.summarize(text)
 
-    @staticmethod
-    def _clean_repetition(text: str) -> str:
-        """
-        Remove consecutive repeated words.
-        Example: "summary summary" -> "summary"
-        """
-        words = text.split()
-        cleaned: List[str] = []
-        last: Optional[str] = None
+        except requests.exceptions.Timeout:
+            print("[WARN] Ollama request timed out. Using simple summarizer.")
+            return self.simple.summarize(text)
+        except Exception as e:
+            print(f"[WARN] Ollama summarization failed: {e}")
+            return self.simple.summarize(text)
 
-        for w in words:
-            if w == last:
-                continue
-            cleaned.append(w)
-            last = w
+    def _clean_output(self, text: str) -> str:
+        """Clean up LLM output."""
+        # Remove common prefixes
+        prefixes_to_remove = [
+            "요약:", "요약 :", "답변 요약:", "요약문:",
+            "Summary:", "Answer:",
+        ]
+        for prefix in prefixes_to_remove:
+            if text.startswith(prefix):
+                text = text[len(prefix):].strip()
 
-        cleaned_text = " ".join(cleaned)
-        cleaned_text = " ".join(cleaned_text.split())
-        return cleaned_text
+        # Remove quotes if present
+        if text.startswith('"') and text.endswith('"'):
+            text = text[1:-1]
+        if text.startswith("'") and text.endswith("'"):
+            text = text[1:-1]
 
-    @staticmethod
-    def _first_sentence(text: str) -> str:
-        """
-        Keep only the first sentence (split by .!?...).
-        """
-        sentences = re.split(r'(?<=[\.!?…])\s+', text)
-        sentences = [s.strip() for s in sentences if s.strip()]
-        if not sentences:
-            return text
-        return sentences[0]
+        return text.strip()
 
 
 # ===== Q/A Summary Pipeline =====
@@ -243,43 +253,102 @@ class QASummaryGenerator:
     def __init__(
         self,
         qa_builder: QAPairBuilder,
-        summarizer: KoBartSummarizer,
-        max_question_chars: int = 120,
-        max_answer_tokens: int = 80,
+        summarizer: OllamaSummarizer,
+        max_question_chars: int = 150,
         debug: bool = False,
     ) -> None:
         self.qa_builder = qa_builder
         self.summarizer = summarizer
         self.max_question_chars = max_question_chars
-        self.max_answer_tokens = max_answer_tokens
         self.debug = debug
 
-    def _shorten_question(self, q: str) -> str:
+    def _summarize_question(self, q: str) -> str:
         """
-        Shorten question:
-        - Split into sentences
-        - Prefer first sentence ending with '?'
-        - Otherwise use first sentence
+        Summarize question using LLM to preserve all key topics.
+        - If short enough, return as-is
+        - Otherwise, use LLM to extract the core question(s)
         """
         q = q.strip()
         if not q:
             return q
 
-        sentences = re.split(r'(?<=[\?\?\.!\!])\s+', q)
-        sentences = [s.strip() for s in sentences if s.strip()]
+        # Short question - return as-is
+        if len(q) <= self.max_question_chars:
+            return q
 
-        if not sentences:
-            return q[: self.max_question_chars]
+        # Use LLM to summarize the question while preserving all topics
+        if self.summarizer.enabled:
+            try:
+                prompt = f"""[질문 원문]
+{q}
 
-        # Prefer sentence ending with question mark
-        for s in sentences:
-            if s.endswith("?") or s.endswith("？"):
-                return s
+[요약]"""
 
-        first = sentences[0]
-        if len(first) <= self.max_question_chars:
-            return first
-        return first[: self.max_question_chars].strip() + " ..."
+                # Question-specific system prompt
+                q_system = """당신은 질문 요약 전문가입니다. 여러 문장으로 된 질문을 핵심만 남겨 간결하게 요약합니다.
+
+## 요약 원칙
+1. 질문의 모든 주제를 빠짐없이 포함
+2. "~인가요?", "~할까요?" 등 질문 형태 유지
+3. 불필요한 말(아, 근데, 그러니까, 잠깐만요 등) 제거
+4. 1-2문장으로 압축
+5. 요약문만 출력 (다른 설명 없이)"""
+
+                response = requests.post(
+                    f"{self.summarizer.base_url}/api/generate",
+                    json={
+                        "model": self.summarizer.model,
+                        "prompt": prompt,
+                        "system": q_system,
+                        "stream": False,
+                        "options": {
+                            "num_predict": 100,
+                            "temperature": 0.2,
+                            "top_p": 0.85,
+                            "top_k": 40,
+                        }
+                    },
+                    timeout=30,
+                )
+
+                if response.status_code == 200:
+                    result = response.json().get("response", "").strip()
+                    result = self.summarizer._clean_output(result)
+                    if result:
+                        return result
+            except Exception:
+                pass
+
+        # Fallback: keep sentences with question marks, remove filler words
+        return self._extract_key_question(q)
+
+    def _extract_key_question(self, q: str) -> str:
+        """Fallback: extract key question without LLM"""
+        # Remove common filler words/phrases
+        fillers = [
+            r'^아\s+', r'^어\s+', r'^음\s+', r'^그\s+',
+            r'근데요?\s*', r'그러니까\s*', r'잠깐만요?\s*',
+            r'있잖아요?\s*', r'그거\s+', r'뭐냐\s*',
+            r'아까\s+말씀하신\s+', r'좀\s+다른\s+얘긴데\s*',
+        ]
+
+        result = q
+        for filler in fillers:
+            result = re.sub(filler, '', result, flags=re.IGNORECASE)
+
+        result = result.strip()
+
+        # If still too long, try to keep question sentences
+        if len(result) > self.max_question_chars:
+            sentences = re.split(r'(?<=[?？.!])\s+', result)
+            q_sentences = [s for s in sentences if '?' in s or '？' in s]
+            if q_sentences:
+                result = ' '.join(q_sentences)
+
+        if len(result) > self.max_question_chars:
+            result = result[:self.max_question_chars].rsplit(' ', 1)[0] + '...'
+
+        return result
 
     def summarize_dialogue(self, utterances: List[Utterance]) -> str:
         pairs = self.qa_builder.build_pairs(utterances)
@@ -295,14 +364,11 @@ class QASummaryGenerator:
 
         lines: List[str] = []
         for i, pair in enumerate(pairs, start=1):
-            # Q는 그대로/살짝만 자르기
-            q_summary = self._shorten_question(pair.question)
+            # Q: summarize question (preserving all topics)
+            q_summary = self._summarize_question(pair.question)
 
-            # A는 요약 모델 통과
-            a_summary = self.summarizer.summarize(
-                pair.answer,
-                max_output_tokens=self.max_answer_tokens,
-            )
+            # A: summarize with LLM
+            a_summary = self.summarizer.summarize(pair.answer)
             if not a_summary:
                 a_summary = pair.answer.strip()
 
@@ -314,7 +380,11 @@ class QASummaryGenerator:
 
 # ===== Helper Function for External Use =====
 
-def summarize_qa_bullets(utterances: List[Utterance], debug: bool = False) -> str:
+def summarize_qa_bullets(
+    utterances: List[Utterance],
+    debug: bool = False,
+    model: str = "gemma2:2b"
+) -> str:
     """
     Summarize STT results (presenter/questioner utterance list) into:
     - Qn: ...
@@ -322,7 +392,7 @@ def summarize_qa_bullets(utterances: List[Utterance], debug: bool = False) -> st
     format string.
     """
     qa_builder = QAPairBuilder()
-    summarizer = KoBartSummarizer(device=None, use_model=True)
+    summarizer = OllamaSummarizer(model=model)
     qa_summary = QASummaryGenerator(qa_builder, summarizer, debug=debug)
     return qa_summary.summarize_dialogue(utterances)
 
@@ -330,6 +400,10 @@ def summarize_qa_bullets(utterances: List[Utterance], debug: bool = False) -> st
 # ===== Demo with Sample Data =====
 
 if __name__ == "__main__":
+    import sys
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
     # Extended demo set: Simulating STT results
     utterances = [
         # --- Introduction (presenter only, not included in Q/A) ---
@@ -535,7 +609,117 @@ if __name__ == "__main__":
         ),
     ]
 
-    print("\n===== Q/A 요약 결과 =====")
-    result = summarize_qa_bullets(utterances, debug=True)
+    print("\n===== 기본 테스트 (12개 Q/A) =====")
+    result = summarize_qa_bullets(utterances, debug=False, model="gemma2:9b")
     print(result)
+    print("================================\n")
+
+    # ===== 까다로운 테스트 케이스 =====
+    difficult_utterances = [
+        # Q1: 중구난방 질문 - 여러 주제가 뒤섞임
+        Utterance(
+            role="questioner",
+            text="아 근데요 그거 있잖아요 아까 말씀하신 그 뭐냐 오프라인 되는 거",
+        ),
+        Utterance(
+            role="questioner",
+            text="그거랑 좀 다른 얘긴데 혹시 이거 맥에서도 돌아가요? 윈도우만 되는 건가요?",
+        ),
+        Utterance(
+            role="questioner",
+            text="아 그리고 메모리는 얼마나 필요해요? GPU 없으면 안 되나요?",
+        ),
+        Utterance(
+            role="presenter",
+            text="아 네 여러 가지 질문을 주셨네요. 일단 맥 지원 여부부터 말씀드리면, 현재는 Windows 환경에서 테스트했고요, macOS에서도 Python과 PyTorch가 동작하니까 기본적으로는 돌아갑니다.",
+        ),
+        Utterance(
+            role="presenter",
+            text="다만 macOS에서는 CUDA가 없어서 MPS 백엔드를 써야 하는데, Whisper는 MPS에서도 잘 돌아가요. 메모리는 Whisper large-v3 기준으로 VRAM 8GB 이상 권장하고요, CPU로도 돌릴 수는 있는데 속도가 많이 느려집니다.",
+        ),
+
+        # Q2: 불완전한 문장과 말 끊김
+        Utterance(
+            role="questioner",
+            text="그니까 제가 궁금한 건... 아 잠깐만요",
+        ),
+        Utterance(
+            role="questioner",
+            text="네 그러니까 이게 실시간으로 막 번역도 되고 그런 건가요? 통역?",
+        ),
+        Utterance(
+            role="questioner",
+            text="동시통역 같은 거요 그런 것도 가능한지",
+        ),
+        Utterance(
+            role="presenter",
+            text="아 동시통역 기능은 현재 버전에는 포함되어 있지 않습니다.",
+        ),
+        Utterance(
+            role="presenter",
+            text="지금은 음성을 텍스트로 바꾸는 STT만 지원하고요, 번역은 별도 모듈을 붙여야 합니다. 근데 기술적으로는 가능해요. Whisper가 다국어를 지원하니까, 한국어 음성을 영어 텍스트로 바로 뽑는 것도 Whisper 옵션으로 되긴 합니다.",
+        ),
+
+        # Q3: 전문 용어와 약어가 섞인 복잡한 질문
+        Utterance(
+            role="questioner",
+            text="ONNX로 export해서 TensorRT 최적화 적용하면 latency 줄일 수 있을 것 같은데 그런 optimization pipeline 고려하고 계신가요?",
+        ),
+        Utterance(
+            role="questioner",
+            text="아니면 quantization이라든지 pruning 같은 model compression technique도요",
+        ),
+        Utterance(
+            role="presenter",
+            text="좋은 질문입니다. 현재는 faster-whisper를 쓰고 있는데, 이게 이미 CTranslate2 기반이라 INT8 quantization이 적용되어 있어요.",
+        ),
+        Utterance(
+            role="presenter",
+            text="TensorRT 적용은 검토 중인데, 아직 Whisper 아키텍처에 대한 공식 TensorRT 지원이 제한적이에요. ONNX export는 가능하고, 실제로 해보니까 약 1.3배 정도 빨라지더라고요. 다만 accuracy가 살짝 떨어지는 trade-off가 있습니다.",
+        ),
+
+        # Q4: 감정이 섞인 부정적 피드백 + 질문
+        Utterance(
+            role="questioner",
+            text="솔직히 데모 보니까 인식률이 좀 아쉬운 것 같아요 제가 써본 다른 서비스보다 못한 느낌?",
+        ),
+        Utterance(
+            role="questioner",
+            text="특히 마이크 품질이 안 좋으면 엉망이 되던데 이건 어떻게 개선할 계획인가요",
+        ),
+        Utterance(
+            role="presenter",
+            text="네 피드백 감사합니다. 마이크 품질에 민감한 건 사실이에요. 몇 가지 개선 방안을 말씀드리면, 첫째로 VAD(Voice Activity Detection)를 더 정교하게 튜닝할 예정이고요.",
+        ),
+        Utterance(
+            role="presenter",
+            text="둘째로 노이즈 캔슬링 전처리를 추가하려고 합니다. RNNoise 같은 걸 앞단에 붙이면 마이크 품질이 낮아도 인식률이 많이 올라가요. 실제로 내부 테스트에서 15% 정도 WER이 개선됐습니다.",
+        ),
+
+        # Q5: 매우 긴 답변 (여러 포인트)
+        Utterance(
+            role="questioner",
+            text="이 시스템을 우리 회사에 도입하려면 어떤 준비가 필요할까요?",
+        ),
+        Utterance(
+            role="presenter",
+            text="도입을 위해서는 몇 가지 준비사항이 있습니다. 하드웨어 측면에서는 NVIDIA GPU가 탑재된 서버가 필요하고, 최소 RTX 3060 이상을 권장합니다. RTX 4090이면 가장 좋고요.",
+        ),
+        Utterance(
+            role="presenter",
+            text="소프트웨어 환경은 Python 3.9 이상, CUDA 11.8 이상이 필요합니다. Docker 환경도 제공하니까 컨테이너로 배포하시면 환경 구성이 편해요.",
+        ),
+        Utterance(
+            role="presenter",
+            text="보안 측면에서는 완전 오프라인 운영이 가능하니까 망분리 환경에서도 사용할 수 있고요. 다만 초기 모델 다운로드 때만 인터넷이 필요합니다.",
+        ),
+        Utterance(
+            role="presenter",
+            text="라이선스는 연구/교육 목적으로는 무료이고, 상업적 사용 시 별도 문의해주시면 됩니다. 기술 지원도 제공하고 있어요.",
+        ),
+    ]
+
+    print("\n===== 까다로운 테스트 (5개 Q/A) =====")
+    result2 = summarize_qa_bullets(difficult_utterances, debug=True, model="gemma2:9b")
+    print(result2)
     print("================================\n")
