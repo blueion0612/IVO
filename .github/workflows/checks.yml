@@ -1,0 +1,46 @@
+name: checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  javascript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Every source file parses
+        run: |
+          find src -name '*.js' -print0 | xargs -0 -n1 node --check
+          node --check src/main/main.js
+
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Every source file compiles
+        run: |
+          python -m compileall -q py
+      - name: The packet layout the gesture controller reads is the documented one
+        run: |
+          python - <<'PY'
+          import io, re
+          s = io.open("py/gesture/gesture_controller.py", encoding="utf-8").read()
+          assert "MSG_SIZE = 30 * 4" in s, "packet size drifted from the documented 30 floats"
+          assert "'>30f'" in s, "endianness or width drifted from big-endian 30 floats"
+          for name, idx in (("sw_lacc_x", 5), ("sw_gyro_x", 8)):
+              assert re.search(rf'"{name}":\s*{idx}\b', s), f"{name} is no longer at index {idx}"
+          doc = io.open("docs/imu-input.md", encoding="utf-8").read()
+          assert "5, 6, 7" in doc and "8, 9, 10" in doc
+          print("packet layout agrees with docs/imu-input.md")
+          PY

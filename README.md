@@ -1,27 +1,28 @@
-# IVO - IMU-Vision Overlay
+# IVO: IMU-Vision Overlay
 
-<div align="center">
+Yuhyeon Lee · 2025
 
-![IVO Logo](image/1.jpg)
+[![Electron](https://img.shields.io/badge/electron-27.0.0-47848F)](https://www.electronjs.org/)
+[![Python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey)](#requirements)
+[![License](https://img.shields.io/github/license/blueion0612/IVO)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/blueion0612/IVO)](https://github.com/blueion0612/IVO/releases)
+[![checks](https://github.com/blueion0612/IVO/actions/workflows/checks.yml/badge.svg)](https://github.com/blueion0612/IVO/actions/workflows/checks.yml)
 
-**Gesture-Controlled Presentation Overlay System**
+[**Architecture**](docs/architecture.md) · [**IMU input**](docs/imu-input.md) · [**Pipeline notes**](docs/IVO_System_Pipeline_EN.md) · [**Streaming app**](https://github.com/blueion0612/IMU_Stream_APP_MJU)
 
-[![Electron](https://img.shields.io/badge/Electron-27.0.0-47848F?logo=electron&logoColor=white)](https://www.electronjs.org/)
-[![Python](https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS-lightgrey)](https://github.com)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/figures/hero_system-dark.png">
+  <img alt="A smartwatch sends inertial data through a phone to the IVO desktop app, a webcam supplies hand landmarks, and haptic acknowledgement returns to the wrist" src="docs/figures/hero_system.png">
+</picture>
 
-*MJU Capstone Project 2025*
+**IVO** drives a presentation without a clicker. A gesture on a smartwatch changes
+the slide, and the watch buzzes back to confirm it was read. A webcam adds hand
+tracking for pointing and drawing on top of whatever is on screen. Speech becomes
+transcript and summary locally, and handwriting on the overlay becomes text, working
+arithmetic and plotted graphs.
 
-</div>
-
----
-
-## Overview
-
-**IVO (IMU-Vision Overlay)** is a presentation overlay system that enables hands-free slide control through IMU (Inertial Measurement Unit) gesture recognition and computer vision-based hand tracking. It provides a seamless, interactive presentation experience without traditional input devices.
-
-### Key Features
+## Features
 
 - **IMU Gesture Recognition**: Control presentations using smartwatch gestures (15 unique gestures)
 - **Hand Tracking Mode**: Draw and point on screen using webcam-based hand detection
@@ -35,120 +36,13 @@
 - **Device Selection**: Camera and microphone selection by device name for consistent setup
 - **Cross-Platform**: Supports Windows and macOS
 
----
-
-## Table of Contents
-
-- [System Architecture](#system-architecture)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Gesture Commands](#gesture-commands)
-- [Features](#features)
-- [IMU Data Communication](#imu-data-communication)
-- [Configuration](#configuration)
-- [Keyboard Shortcuts](#keyboard-shortcuts)
-- [Building from Source](#building-from-source)
-- [Project Structure](#project-structure)
-- [Requirements](#requirements)
-- [Credits](#credits)
+Each of these is broken down in [the feature notes](docs/features.md).
 
 ---
 
-## System Architecture
+## Quick start
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              IVO System Overview                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-┌──────────────┐     Bluetooth     ┌──────────────┐       UDP        ┌──────────────┐
-│  Smartwatch  │  ─────────────>   │  Smartphone  │  ─────────────>  │  IVO Desktop │
-│   (WearOS)   │    IMU Data       │   (Android)  │   Port 65000     │   (Electron) │
-│              │                   │              │                   │              │
-│  - Sensors   │                   │  - Relay     │                   │  - Overlay   │
-│  - Haptics   │ <─────────────    │  - Forward   │ <─────────────    │  - Gesture   │
-│              │    Vibration      │              │   Port 65010      │  - Hand Track│
-└──────────────┘                   └──────────────┘                   └──────────────┘
-                                                                              │
-                                                                              │
-                                   ┌──────────────┐                           │
-                                   │   Webcam     │ <─────────────────────────┘
-                                   │              │    Hand Tracking
-                                   │  - MediaPipe │    (Optional)
-                                   └──────────────┘
-```
-
-### Two-Stage Gesture Recognition
-
-IVO uses a two-stage neural network approach for robust gesture recognition:
-
-1. **Stage 1 - Entry Detection**: LSTM-based model that detects when a gesture motion begins
-2. **Stage 2 - Gesture Classification**: TCN (Temporal Convolutional Network) that classifies the specific gesture type
-
-This architecture minimizes false positives while maintaining responsiveness.
-
-> 📚 **Training Framework**: The gesture recognition models were developed using our custom [IMU Gesture Classifier](https://github.com/blueion0612/IMU_Gesture_Classifier) framework, which supports various architectures (MLP, LSTM, GRU, TCN) for IMU-based gesture recognition.
-
----
-
-## Installation
-
-### Prerequisites
-
-- **Node.js** 18.x or higher
-- **Python** 3.9 or higher
-- **npm** 9.x or higher
-- **IMU Streaming App** (for gesture control): [Download from GitHub](https://github.com/blueion0612/IMU_Stream_APP_MJU)
-
-### Step 1: Clone Repository
-
-```bash
-git clone https://github.com/blueion0612/IVO.git
-cd IVO
-```
-
-### Step 2: Install Dependencies
-
-```bash
-# Install Node.js dependencies
-npm install
-
-# Install Python dependencies (Core)
-pip install torch mediapipe opencv-python numpy sympy matplotlib pillow requests websockets
-
-# Install Python dependencies (STT - requires CUDA)
-pip install faster-whisper sounddevice
-
-# Install Ollama for Q&A Summarization
-# Download from https://ollama.com/download
-# Then pull the model:
-ollama pull gemma2:9b
-```
-
-### Step 3: Download Model Weights
-
-Download the pre-trained gesture recognition models from the [Google Drive](https://drive.google.com/drive/folders/1eac_bqIQ1vY2Z1D-OqNQRVsJi-RC-cR-?usp=drive_link) and place them in the `models/` directory:
-- `stage1_best.pt` - Entry detection model
-- `stage2_best.pt` - Gesture classification model
-
-> **Note**: These models were trained using the [IMU Gesture Classifier](https://github.com/blueion0612/IMU_Gesture_Classifier) framework. The Google Drive also contains the original IMU gesture dataset if you want to train custom models.
-
-### Step 4: Configure API Keys (Optional)
-
-For Korean dictionary lookup in Sticky Note mode, create a `.env` file in the project root:
-
-```bash
-# .env
-KOREAN_DICT_API_KEY=your_api_key_here
-```
-
-Get your free API key from [국립국어원 Open API](https://opendict.korean.go.kr/service/openApiInfo).
-
-> **Note**: English dictionary lookup works without any API key using the free [Free Dictionary API](https://dictionaryapi.dev/).
-
----
-
-## Quick Start
+Install first, see [Requirements](#requirements).
 
 ### Development Mode
 
@@ -172,259 +66,31 @@ npm run build:mac
 
 ---
 
-## Gesture Commands
+## Usage
 
 IVO recognizes 15 distinct gestures:
 
-| Gesture | Icon | Action | Description |
-|---------|------|--------|-------------|
-| **Left Swipe** | ⬅️ | Previous Slide | Navigate to previous slide |
-| **Right Swipe** | ➡️ | Next Slide | Navigate to next slide |
-| **Up Swipe** | ⬆️ | Pointer Mode | Activate laser pointer overlay |
-| **Down Swipe** | ⬇️ | STT Recording | Toggle speech-to-text recording |
-| **Circle CW** | 🔃 | Recording Mode | Start STT recording session |
-| **Circle CCW** | 🔄 | Sticky Note Mode | Toggle sticky note mode with voice input |
-| **Double Left** | ⏪ | Jump -3 Slides | Skip back 3 slides |
-| **Double Right** | ⏩ | Jump +3 Slides | Skip forward 3 slides |
-| **X Motion** | ❌ | Reset All | Disable all features and reset state |
-| **Double Tap** | 👆👆 | Hand Drawing | Toggle hand tracking drawing mode |
-| **90° Left** | ↩️ | OCR Start | Begin OCR session for handwriting |
-| **90° Right** | ↪️ | Toggle Draw/Pointer | Switch between drawing and pointer modes |
-| **Figure 8** | ♾️ | Timer Toggle | Start/stop presentation timer |
-| **Square** | ⬜ | Calibrate | 4-corner hand tracking calibration |
-| **Triangle** | 🔺 | Blackout | Toggle screen blackout mode |
+| Gesture | Action | Description |
+|---|---|---|
+| **Left Swipe** | Previous Slide | Navigate to previous slide |
+| **Right Swipe** | Next Slide | Navigate to next slide |
+| **Up Swipe** | Pointer Mode | Activate laser pointer overlay |
+| **Down Swipe** | STT Recording | Toggle speech-to-text recording |
+| **Circle CW** | Recording Mode | Start STT recording session |
+| **Circle CCW** | Sticky Note Mode | Toggle sticky note mode with voice input |
+| **Double Left** | Jump -3 Slides | Skip back 3 slides |
+| **Double Right** | Jump +3 Slides | Skip forward 3 slides |
+| **X Motion** | Reset All | Disable all features and reset state |
+| **Double Tap** | Hand Drawing | Toggle hand tracking drawing mode |
+| **90° Left** | OCR Start | Begin OCR session for handwriting |
+| **90° Right** | Toggle Draw/Pointer | Switch between drawing and pointer modes |
+| **Figure 8** | Timer Toggle | Start/stop presentation timer |
+| **Square** | Calibrate | 4-corner hand tracking calibration |
+| **Triangle** | Blackout | Toggle screen blackout mode |
 
 ---
 
-## Features
-
-### 1. Gesture-Based Slide Control
-
-Control PowerPoint, Keynote, or any presentation software using wrist gestures detected by your smartwatch's IMU sensors.
-
-- **15 Unique Gestures**: Comprehensive gesture set for full presentation control
-- **Two-Stage Recognition**: Stage 1 detects gesture start, Stage 2 classifies gesture type
-- **Haptic Feedback**: Real-time vibration feedback on smartwatch for gesture confirmation
-- **Low Latency**: ~2.5 seconds for gesture recognition with high accuracy
-
-### 2. Hand Tracking Overlay
-
-- **Pointer Mode**: Use your index finger as a laser pointer with visual cursor
-- **Drawing Mode**: Draw annotations on screen using pinch gesture (thumb + index finger)
-- **Double-Tap Calibration**: Use double-tap gesture to trigger 4-corner screen calibration
-- **Calibration Persistence**: Calibration data persists across hand tracking restarts
-- **Color Palette**: 6 colors (Red, Yellow, Green, Blue, Purple, Black) with hover-dwell selection
-- **Line Width**: 4 thickness options (2px, 4px, 8px, 12px)
-- **Control Panel**: On-screen tool panel accessible via hand pointer hover-dwell
-
-### 3. OCR & Calculation
-
-- **Text OCR**: Convert handwritten text to digital text using Google Vision API
-- **Math OCR**: Recognize LaTeX mathematical expressions using SimpleTex API
-- **Calculator**: Evaluate mathematical expressions with SymPy
-- **Graph Plotter**: Generate function graphs with Matplotlib
-- **OCR Session**: Draw → OCR → Result display workflow with undo support
-
-### 4. Speech-to-Text (STT) & Q&A Summarization
-
-**Local STT Engine:**
-- **Whisper large-v3**: Local speech recognition via faster-whisper
-- **CUDA Acceleration**: GPU-accelerated transcription for low latency
-- **Multi-language**: Automatic Korean/English language detection
-- **VAD Filtering**: Voice Activity Detection to filter silence
-
-**Conversation Stack UI:**
-- **Speaker Tags**: Presenter, Q1, Q2, Q3 speaker identification
-- **Hand Pointer Selection**: Hover-dwell on speaker buttons to change speaker
-- **Real-time Display**: Transcriptions appear immediately with speaker attribution
-- **Scrollable History**: Full conversation history with auto-scroll
-
-**Q&A Summarization:**
-- **Ollama LLM (gemma2:9b)**: High-quality abstractive summarization using local LLM
-- **Q/A Pair Extraction**: Automatically groups questions with presenter answers
-- **Full Context Summarization**: Both questions and answers are summarized preserving all key topics
-- **Bullet-point Format**: Clean, readable summary output (Q1/A1, Q2/A2 format)
-- **Fallback Mode**: Rule-based summarization when Ollama unavailable
-
-**STT Workflow:**
-1. **Circle CW** → Initialize STT session (loads Whisper model)
-2. **Down Swipe** → Start/stop recording (toggle)
-3. Use hand pointer to select speaker for each transcription
-4. **Circle CCW** → Generate summary and exit STT mode
-
-### 5. Sticky Note Mode
-
-Voice-to-text sticky notes with integrated dictionary lookup:
-
-- **Voice Recording**: Press + button or use hand pointer hover-dwell to record
-- **STT Integration**: Automatic transcription using Whisper large-v3
-- **Dictionary Lookup**: Built-in Korean/English dictionary for word definitions
-- **Draggable Notes**: Drag notes anywhere on screen with mouse or hand pointer
-- **Hand Tracking Support**: Full hover-dwell interaction with hand pointer
-
-**Dictionary Features:**
-- **Korean Dictionary**: 국립국어원 Open API (requires API key in `.env`)
-- **English Dictionary**: Free Dictionary API (no key required)
-- **Auto Language Detection**: Automatically detects Korean or English input
-- **Korean Particle Removal**: Intelligently strips particles (은/는/이/가/을/를) for better lookup
-- **Multi-word Support**: Looks up each word in a sentence with page navigation
-- **Punctuation Handling**: Automatically removes punctuation from words
-
-**Sticky Note Workflow:**
-1. **Circle CCW** → Enter sticky note mode
-2. Press **+** button (hover-dwell) → Start recording
-3. Speak → Press **+** again → Creates note with transcription
-4. Press **📖** button → View dictionary definitions
-5. Use **◀ ▶** buttons to navigate between words
-6. **Circle CCW** again → Exit sticky note mode
-
-### 6. Presentation Timer
-
-- **Visual Display**: Large, readable timer overlay
-- **Figure 8 Toggle**: Start/stop timer with figure-8 gesture
-- **Elapsed Time**: Shows presentation duration in MM:SS format
-
-### 7. Blackout Mode
-
-- **Triangle Gesture**: Toggle full-screen black overlay
-- **Presentation Pause**: Temporarily hide screen content during Q&A or breaks
-
-### 8. Device Selection
-
-The launcher allows selection of specific camera and microphone devices by name:
-
-- **Camera Selection**: Choose webcam by device name for consistent hand tracking
-- **Microphone Selection**: Choose microphone by device name for STT
-- **Name-based Matching**: Devices are matched by name, not index (handles USB port changes)
-- **Persistent Settings**: Selected devices are remembered across sessions
-
----
-
-## IMU Data Communication
-
-### Overview
-
-| Parameter | Value |
-|-----------|-------|
-| Protocol | UDP |
-| IMU Port | 65000 |
-| Haptic Port | 65010 |
-| IMU Endian | Big Endian |
-| Haptic Endian | Little Endian |
-| Message Size | 120 bytes (30 floats) |
-
-### IMU Data Structure (30 floats)
-
-#### Watch Data (Index 0-14)
-
-| Index | Field | Description | Unit |
-|-------|-------|-------------|------|
-| 0 | sw_dT | Sample time delta | seconds |
-| 1-4 | w_ts_* | Timestamp (h, m, s, nano) | - |
-| 5-7 | w_lacc_* | Linear Acceleration (X, Y, Z) | m/s² |
-| 8-10 | w_gyro_* | Gyroscope (X, Y, Z) | rad/s |
-| 11-14 | w_rotvec_* | Rotation Vector (W, X, Y, Z) | quaternion |
-
-#### Phone Data (Index 15-29)
-
-| Index | Field | Description | Unit |
-|-------|-------|-------------|------|
-| 15 | p_dT | Sample time delta | seconds |
-| 16-19 | p_ts_* | Timestamp (h, m, s, nano) | - |
-| 20-22 | p_lacc_* | Linear Acceleration (X, Y, Z) | m/s² |
-| 23-25 | p_gyro_* | Gyroscope (X, Y, Z) | rad/s |
-| 26-29 | p_rotvec_* | Rotation Vector (W, X, Y, Z) | quaternion |
-
-### Python Parsing Example
-
-```python
-import struct
-
-MSG_SIZE = 120  # 30 floats × 4 bytes
-data, addr = udp_socket.recvfrom(MSG_SIZE)
-
-# Parse as Big Endian
-values = struct.unpack('>30f', data[:MSG_SIZE])
-
-# Extract Watch data
-watch_lacc = (values[5], values[6], values[7])      # X, Y, Z
-watch_gyro = (values[8], values[9], values[10])     # X, Y, Z
-watch_rotvec = (values[11], values[12], values[13], values[14])  # W, X, Y, Z
-
-# Extract Phone data
-phone_lacc = (values[20], values[21], values[22])   # X, Y, Z
-phone_gyro = (values[23], values[24], values[25])   # X, Y, Z
-```
-
-### Haptic Feedback
-
-Send vibration commands to the smartwatch:
-
-```python
-import struct
-
-# Haptic parameters
-intensity = 200   # 1-255
-count = 2         # 1-10
-duration = 150    # 50-500 ms
-
-# Pack as Little Endian
-data = struct.pack('<iii', intensity, count, duration)
-sock.sendto(data, (phone_ip, 65010))
-```
-
-### Data Flow Diagram
-
-```
-┌─────────────┐    Bluetooth    ┌─────────────┐      UDP        ┌─────────────┐
-│   Watch     │  ───────────>   │   Phone     │  ───────────>   │   Server    │
-│  (WearOS)   │    IMU 15f      │  (Android)  │   IMU 30f       │  (Python)   │
-│             │                 │             │   Port 65000    │             │
-│             │                 │             │   Big Endian    │             │
-└─────────────┘                 └─────────────┘                 └─────────────┘
-      ▲                               ▲                               │
-      │        Bluetooth              │           UDP                 │
-      │        Big Endian             │        Little Endian          │
-      └───────────────────────────────┴───────────────────────────────┘
-                              Haptic Command (12 bytes)
-                              Port 65010
-```
-
----
-
-## Configuration
-
-Configuration is stored in `config/config.json`:
-
-### Key Settings
-
-```json
-{
-  "imu": {
-    "udp_ip": "192.168.0.48",
-    "udp_port": 65000,
-    "stage1_threshold": 0.5,
-    "stage2_collection_sec": 2.5,
-    "cooldown_sec": 2.0
-  },
-  "websocket": {
-    "port": 17890
-  },
-  "overlay": {
-    "default_color": "rgba(255, 0, 0, 0.8)",
-    "line_width": 4,
-    "hover_duration_ms": 700
-  }
-}
-```
-
-### Gesture Mapping
-
-Customize gesture-to-command mappings in the `gesture_to_command` section.
-
----
-
-## Keyboard Shortcuts
+### Keyboard shortcuts
 
 ### Debug Shortcuts (F1-F12)
 
@@ -458,32 +124,68 @@ Customize gesture-to-command mappings in the `gesture_to_command` section.
 
 ---
 
-## Building from Source
+### Configuration
 
-### Windows
+Configuration is stored in `config/config.json`:
 
-```bash
-npm run build        # Creates NSIS installer
-npm run dist         # Creates installer without publishing
-npm run build:portable  # Creates portable version
+### Key Settings
+
+```json
+{
+  "imu": {
+    "udp_ip": "192.168.0.48",
+    "udp_port": 65000,
+    "stage1_threshold": 0.5,
+    "stage2_collection_sec": 2.5,
+    "cooldown_sec": 2.0
+  },
+  "websocket": {
+    "port": 17890
+  },
+  "overlay": {
+    "default_color": "rgba(255, 0, 0, 0.8)",
+    "line_width": 4,
+    "hover_duration_ms": 700
+  }
+}
 ```
 
-### macOS
+### Gesture Mapping
 
-```bash
-npm run build:mac    # Creates DMG
-npm run dist:mac     # Creates DMG without publishing
-```
-
-### Build Output
-
-Built applications are placed in the `dist/` directory:
-- Windows: `IVO Setup 3.0.0.exe`
-- macOS: `IVO-3.0.0.dmg`
+Customize gesture-to-command mappings in the `gesture_to_command` section.
 
 ---
 
-## Project Structure
+<details>
+<summary><b>Troubleshooting</b></summary>
+
+### Python Not Found
+
+Ensure Python is installed and in PATH:
+
+```bash
+# Windows
+where python
+
+# macOS/Linux
+which python3
+```
+
+### WebSocket Connection Failed
+
+Check that the IMU Streaming App is running and connected to the same network.
+
+### Hand Tracking Not Working
+
+1. Ensure webcam is connected and accessible
+2. Check lighting conditions
+3. Run calibration (C key or Square gesture)
+
+---
+
+</details>
+
+## Repository layout
 
 ```
 ivo/
@@ -589,39 +291,111 @@ pygrabber>=0.2
 
 ---
 
-## Troubleshooting
+<details>
+<summary><b>Installing and building from source</b></summary>
 
-### Python Not Found
+### Prerequisites
 
-Ensure Python is installed and in PATH:
+- **Node.js** 18.x or higher
+- **Python** 3.9 or higher
+- **npm** 9.x or higher
+- **IMU Streaming App** (for gesture control): [Download from GitHub](https://github.com/blueion0612/IMU_Stream_APP_MJU)
+
+### Step 1: Clone Repository
 
 ```bash
-# Windows
-where python
-
-# macOS/Linux
-which python3
+git clone https://github.com/blueion0612/IVO.git
+cd IVO
 ```
 
-### WebSocket Connection Failed
+### Step 2: Install Dependencies
 
-Check that the IMU Streaming App is running and connected to the same network.
+```bash
+# Install Node.js dependencies
+npm install
 
-### Hand Tracking Not Working
+# Install Python dependencies (Core)
+pip install torch mediapipe opencv-python numpy sympy matplotlib pillow requests websockets
 
-1. Ensure webcam is connected and accessible
-2. Check lighting conditions
-3. Run calibration (C key or Square gesture)
+# Install Python dependencies (STT - requires CUDA)
+pip install faster-whisper sounddevice
+
+# Install Ollama for Q&A Summarization
+# Download from https://ollama.com/download
+# Then pull the model:
+ollama pull gemma2:9b
+```
+
+### Step 3: Download Model Weights
+
+Download the pre-trained gesture recognition models from the [Google Drive](https://drive.google.com/drive/folders/1eac_bqIQ1vY2Z1D-OqNQRVsJi-RC-cR-?usp=drive_link) and place them in the `models/` directory:
+- `stage1_best.pt` - Entry detection model
+- `stage2_best.pt` - Gesture classification model
+
+> **Note**: These models were trained using the [IMU Gesture Classifier](https://github.com/blueion0612/IMU_Gesture_Classifier) framework. The Google Drive also contains the original IMU gesture dataset if you want to train custom models.
+
+### Step 4: Configure API Keys (Optional)
+
+For Korean dictionary lookup in Sticky Note mode, create a `.env` file in the project root:
+
+```bash
+# .env
+KOREAN_DICT_API_KEY=your_api_key_here
+```
+
+Get your free API key from [국립국어원 Open API](https://opendict.korean.go.kr/service/openApiInfo).
+
+> **Note**: English dictionary lookup works without any API key using the free [Free Dictionary API](https://dictionaryapi.dev/).
 
 ---
+
+### Building
+
+### Windows
+
+```bash
+npm run build        # Creates NSIS installer
+npm run dist         # Creates installer without publishing
+npm run build:portable  # Creates portable version
+```
+
+### macOS
+
+```bash
+npm run build:mac    # Creates DMG
+npm run dist:mac     # Creates DMG without publishing
+```
+
+### Build Output
+
+Built applications are placed in the `dist/` directory:
+- Windows: `IVO Setup 3.0.0.exe`
+- macOS: `IVO-3.0.0.dmg`
+
+---
+
+</details>
+
+## Limitations
+
+- **The models are trained on one wearer.** Gesture recognition has not been
+  evaluated on anyone else's movements, and the two-stage detector's thresholds were
+  tuned by hand.
+- **UDP with no acknowledgement.** A dropped packet shortens the window the
+  classifier sees, and nothing detects that.
+- **The desktop app must be reachable from the phone**, which means the same local
+  network and no client isolation on the access point.
+- **Speech to text and summarisation run locally**, so both want a GPU. On CPU they
+  work but are not interactive.
+- **Hand tracking needs the calibration step** whenever the camera or the screen
+  moves.
+- Windows and macOS only. Nothing here has been run on Linux.
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
-
-## Credits
 
 **IVO - IMU-Vision Overlay**
 MJU Capstone Project 2025
@@ -646,3 +420,4 @@ Made by **LYH**
 **[Report Bug](https://github.com/blueion0612/IVO/issues) · [Request Feature](https://github.com/blueion0612/IVO/issues)**
 
 </div>
+
