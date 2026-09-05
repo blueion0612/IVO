@@ -1,10 +1,10 @@
 # IMU input
 
 IVO listens on UDP 65000 for the packet that
-[IMU_Stream_APP_MJU](https://github.com/blueion0612/IMU_Stream_APP_MJU) sends: **30
+[IMU_Streamer](https://github.com/blueion0612/IMU_Streamer) sends: **30
 big-endian floats, 120 bytes**, a watch block followed by a phone block. The wire
 format is documented in full
-[there](https://github.com/blueion0612/IMU_Stream_APP_MJU/blob/main/docs/protocol.md).
+[there](https://github.com/blueion0612/IMU_Streamer/blob/main/docs/protocol.md).
 Haptic commands go back on UDP 65010 as three little-endian integers.
 
 ## Which channels reach the model

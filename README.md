@@ -48,7 +48,7 @@ is also reachable from the keyboard, so the app runs without any of the hardware
 ## Quick start
 
 Node.js 18 or newer and Python 3.9 or newer. For gesture control, a WearOS watch and
-an Android phone running the [streaming app](https://github.com/blueion0612/IMU_Stream_APP_MJU),
+an Android phone running the [streaming app](https://github.com/blueion0612/IMU_Streamer),
 on the same network as this machine.
 
 ```bash
@@ -205,7 +205,7 @@ package.json               npm scripts and the electron-builder configuration
 | Python packages | torch, mediapipe, opencv-python, numpy, sympy, matplotlib, pillow, requests, websockets; faster-whisper and sounddevice for speech to text |
 | Node packages | `ws` at run time; `electron`, `electron-builder` and `rcedit` to build |
 | Smartwatch | a WearOS watch with inertial sensors, for gestures |
-| Smartphone | an Android phone running the [streaming app](https://github.com/blueion0612/IMU_Stream_APP_MJU) |
+| Smartphone | an Android phone running the [streaming app](https://github.com/blueion0612/IMU_Streamer) |
 | Webcam | any, for hand tracking |
 | GPU | wanted by speech to text and the summarizer; both run on CPU, slowly |
 
@@ -244,13 +244,13 @@ page carries the built installers.
 
 ## Related
 
-- [IMU_Stream_APP_MJU](https://github.com/blueion0612/IMU_Stream_APP_MJU): the watch
+- [IMU_Streamer](https://github.com/blueion0612/IMU_Streamer): the watch
   and phone apps that send the 30-float packet IVO reads.
 - [IMU_Gesture_Classifier](https://github.com/blueion0612/IMU_Gesture_Classifier):
   trains the two checkpoints IVO loads. It records the upstream 55-float packet, so
   the six channels sit at different indices in each; IVO remaps them, and
   [`docs/imu-input.md`](docs/imu-input.md) records both layouts.
-- [CapstoneVOX](https://github.com/blueion0612/CapstoneVOX): the sibling capstone,
+- [VOX](https://github.com/blueion0612/VOX): the sibling capstone,
   hand signals from the same streaming apps for a different purpose.
 
 ## License
