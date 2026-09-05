@@ -12,16 +12,13 @@ Yuhyeon Lee · 2025
 
 [**Architecture**](docs/architecture.md) · [**IMU input**](docs/imu-input.md) · [**Feature notes**](docs/features.md) · [**Pipeline notes**](docs/IVO_System_Pipeline_EN.md) · [**Related**](#related)
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/figures/hero_system-dark.png">
-  <img alt="A smartwatch sends inertial data through a phone to the IVO desktop app, a webcam supplies hand landmarks, and haptic acknowledgement returns to the wrist" src="docs/figures/hero_system.png">
-</picture>
+<img alt="The overlay on top of a slide: a blue border and a Perform gesture now prompt while a gesture is being read, the gesture guide listing fifteen gestures on the right, and the presentation timer at the bottom left" src="docs/figures/hero_overlay.png">
 
 </div>
 
-*Two input paths into one desktop app. Green is the gesture path from the watch
-through the phone, gold the vision path from the webcam. The dashed line is the
-haptic acknowledgement sent back to the wrist.*
+*The overlay on top of a sample slide, on Windows. The border and the prompt show
+while a gesture is being read, the guide on the right lists the fifteen gestures,
+and the timer sits at the bottom left. Everything else on screen is the slide.*
 
 **IVO** drives a presentation without a clicker. A gesture on a smartwatch changes
 the slide, and the watch buzzes back to confirm it was read. A webcam adds hand
@@ -44,6 +41,15 @@ arithmetic and plotted graphs. Undergraduate capstone project, Myongji Universit
 
 Each of these is broken down in [the feature notes](docs/features.md). Every feature
 is also reachable from the keyboard, so the app runs without any of the hardware.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/figures/hero_system-dark.png">
+  <img alt="A smartwatch sends inertial data through a phone to the IVO desktop app, a webcam supplies hand landmarks, and haptic acknowledgement returns to the wrist" src="docs/figures/hero_system.png">
+</picture>
+
+*Two input paths into one desktop app. Green is the gesture path from the watch
+through the phone, gold the vision path from the webcam. The dashed line is the
+haptic acknowledgement sent back to the wrist.*
 
 ## Quick start
 
@@ -192,7 +198,7 @@ py/
 models/                    the two gesture checkpoints, downloaded, not in git
 config/config.json         application configuration
 docs/                      architecture, IMU packet layout, feature notes, pipeline notes
-docs/figures/              README figure, the script that draws it, figstyle.py
+docs/figures/              the screenshot, the system figure and the script that draws it, figstyle.py
 image/                     app icon and assets
 package.json               npm scripts and the electron-builder configuration
 ```
