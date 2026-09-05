@@ -62,7 +62,8 @@ Download `stage1_best.pt` and `stage2_best.pt` from the
 [Google Drive folder](https://drive.google.com/drive/folders/1eac_bqIQ1vY2Z1D-OqNQRVsJi-RC-cR-?usp=drive_link)
 into `models/`. They were trained with
 [IMU_Gesture_Classifier](https://github.com/blueion0612/IMU_Gesture_Classifier); the
-folder also holds the recordings, for training different ones.
+folder also holds the recordings, for training different ones. If the folder is
+unavailable, the two files are sent on request by email (yuhyunkorea@gmail.com).
 
 ```bash
 npm start              # launcher, then the overlay
